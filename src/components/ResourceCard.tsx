@@ -43,6 +43,8 @@ function formatDate(dateStr: string): string {
 export function ResourceCard({
   id,
   fileName,
+  module: moduleName,
+  topic,
   status,
   fileSizeBytes,
   createdAt,
@@ -71,6 +73,8 @@ export function ResourceCard({
     }
   }
 
+  const contentUrl = `/dashboard/content/${encodeURIComponent(moduleName)}/${encodeURIComponent(topic)}`;
+
   return (
     <div className={styles.card}>
       <div className={styles.info}>
@@ -95,7 +99,9 @@ export function ResourceCard({
           </button>
         )}
         {status === "ready" && (
-          <span className={styles["ready-check"]}>✓ Content generated</span>
+          <a href={contentUrl} className="btn btn-secondary btn-sm">
+            View Content
+          </a>
         )}
         <button
           onClick={handleDelete}

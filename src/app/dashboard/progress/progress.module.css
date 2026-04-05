@@ -1,0 +1,75 @@
+.page {
+  animation: fadeIn 0.3s ease;
+}
+
+.header {
+  margin-bottom: var(--space-2xl);
+}
+
+.header h1 {
+  margin-bottom: var(--space-xs);
+}
+
+/* Stats row */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-2xl);
+}
+
+.stat {
+  text-align: center;
+  padding: var(--space-lg) var(--space-md);
+}
+
+.statValue {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--accent-primary);
+  display: block;
+  margin-bottom: var(--space-xs);
+}
+
+.statLabel {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Two-column grid */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-xl);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.section h2 {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--space-lg);
+}
+
+.activityCard {
+  padding: var(--space-md);
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .statsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

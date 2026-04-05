@@ -1,0 +1,25 @@
+.container {
+  text-align: center;
+  padding: var(--space-3xl) var(--space-xl);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-lg);
+}
+
+.title {
+  margin-bottom: var(--space-sm);
+}
+
+.description {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-xl);
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}

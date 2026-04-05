@@ -599,3 +599,75 @@ code {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
 }
+
+/* ============================================================
+   MARKDOWN CONTENT (global — used by markdown-renderer)
+   ============================================================ */
+
+.markdown-content {
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.markdown-content p {
+  margin-bottom: var(--space-sm);
+}
+
+.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.markdown-content .code-block {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  overflow-x: auto;
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  margin: var(--space-sm) 0;
+}
+
+.markdown-content .code-block code {
+  background: none;
+  padding: 0;
+  border: none;
+  font-size: inherit;
+}
+
+.markdown-content .inline-code {
+  font-family: var(--font-geist-mono);
+  font-size: 0.85em;
+  padding: 0.15em 0.35em;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.markdown-content .math-display {
+  font-family: var(--font-geist-mono);
+  text-align: center;
+  padding: var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  margin: var(--space-sm) 0;
+  overflow-x: auto;
+}
+
+.markdown-content .math-inline {
+  font-family: var(--font-geist-mono);
+  font-size: 0.9em;
+}
+
+.markdown-content .md-list {
+  padding-left: var(--space-xl);
+  margin: var(--space-sm) 0;
+}
+
+.markdown-content .md-list-item {
+  margin-bottom: var(--space-xs);
+}

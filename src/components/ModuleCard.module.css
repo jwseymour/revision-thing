@@ -1,0 +1,64 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  text-decoration: none;
+  color: inherit;
+  transition: all var(--transition-base);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.name {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.topicCount {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  padding-top: 3px;
+}
+
+.stats {
+  display: flex;
+  gap: var(--space-xl);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.statValue {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.statLabel {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.mastery {
+  margin-top: auto;
+}
