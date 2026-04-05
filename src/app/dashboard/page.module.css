@@ -1,0 +1,127 @@
+.dashboard {
+  animation: fadeIn 0.3s ease;
+}
+
+.welcome {
+  margin-bottom: var(--space-2xl);
+}
+
+.welcome h1 {
+  font-size: var(--font-size-2xl);
+  margin-bottom: var(--space-xs);
+}
+
+/* --- STATS GRID --- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-2xl);
+}
+
+.stat-card {
+  text-align: center;
+  padding: var(--space-lg) var(--space-md);
+}
+
+.stat-value {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: var(--space-xs);
+  color: var(--accent-primary);
+}
+
+.stat-label {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* --- SECTIONS --- */
+.section {
+  margin-bottom: var(--space-2xl);
+}
+
+.section h2 {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--space-lg);
+}
+
+/* --- ACTION GRID --- */
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+}
+
+.action-card {
+  text-decoration: none;
+  cursor: pointer;
+  display: block;
+}
+
+.action-icon {
+  font-size: 1.6rem;
+  display: block;
+  margin-bottom: var(--space-md);
+}
+
+.action-card h3 {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-xs);
+  color: var(--text-primary);
+}
+
+/* --- ACTIVITY LIST --- */
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.activity-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.activity-text {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.activity-time {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .action-grid {
+    grid-template-columns: 1fr;
+  }
+}
