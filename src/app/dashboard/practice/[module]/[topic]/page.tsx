@@ -244,17 +244,19 @@ export default function PracticePage({
       <div className={`${styles.cardArea} ${transitioning ? styles.fadeOut : styles.fadeIn}`}>
         {isFlashcard ? (
           /* FLASHCARD */
-          <div className={styles.card}>
-            <div className={styles.cardContent}>
-              <MarkdownContent content={(currentItem.data as Flashcard).front} />
-            </div>
-
-            {phase === "revealed" && (
-              <div className={styles.revealedContent}>
-                <div className={styles.divider} />
-                <MarkdownContent content={(currentItem.data as Flashcard).back} />
+          <div className={styles.flipContainer}>
+            <div className={`${styles.flipInner} ${phase === "revealed" ? styles.flipped : ""}`}>
+              <div className={styles.flipFront}>
+                <div className={styles.cardContent}>
+                  <MarkdownContent content={(currentItem.data as Flashcard).front} />
+                </div>
               </div>
-            )}
+              <div className={styles.flipBack}>
+                <div className={styles.cardContent}>
+                  <MarkdownContent content={(currentItem.data as Flashcard).back} />
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           /* QUESTION */

@@ -1,0 +1,134 @@
+.page {
+  animation: fadeIn 0.3s ease;
+}
+
+.header {
+  margin-bottom: var(--space-2xl);
+}
+
+.header h1 {
+  margin-bottom: var(--space-xs);
+}
+
+/* Stats */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-lg);
+  margin-bottom: var(--space-2xl);
+}
+
+.statCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-lg);
+}
+
+.typeStats {
+  align-items: stretch;
+  text-align: left;
+  gap: var(--space-xs);
+}
+
+.typeRow {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.statValue {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--status-danger);
+  margin-bottom: var(--space-xs);
+}
+
+.statLabel {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xl);
+}
+
+/* List */
+.mistakeList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.mistakeCard {
+  padding: var(--space-lg);
+}
+
+.mistakeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.mistakeInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.mistakeContext {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.date {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* Error Type Badges */
+.badge-conceptual { background: rgba(217, 122, 122, 0.15); color: #d97a7a; }
+.badge-misapplication { background: rgba(229, 168, 75, 0.15); color: #e5a84b; }
+.badge-memory { background: rgba(122, 174, 212, 0.15); color: #7aaed4; }
+.badge-careless { background: rgba(123, 196, 127, 0.15); color: #7bc47f; }
+
+.notes {
+  background: var(--bg-tertiary);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-lg);
+  font-size: var(--font-size-sm);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.emptyState {
+  text-align: center;
+  padding: var(--space-3xl) 0;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}

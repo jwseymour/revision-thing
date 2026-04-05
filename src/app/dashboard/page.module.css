@@ -4,11 +4,58 @@
 
 .welcome {
   margin-bottom: var(--space-2xl);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-xl);
+  flex-wrap: wrap;
+}
+
+.welcomeInfo {
+  flex: 1;
+  min-width: 300px;
 }
 
 .welcome h1 {
   font-size: var(--font-size-2xl);
   margin-bottom: var(--space-xs);
+}
+
+/* --- BEHAVIOUR WIDGETS --- */
+.behaviourWidgets {
+  display: flex;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.streakWidget, .targetWidget {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-elevated);
+}
+
+.streakEmoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.streakInfo, .targetInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.targetProgress {
+  color: var(--accent-primary);
+  background: rgba(229, 168, 75, 0.1);
+  padding: var(--space-sm);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  text-align: center;
 }
 
 /* --- STATS GRID --- */

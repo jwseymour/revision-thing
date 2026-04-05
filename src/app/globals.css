@@ -193,7 +193,7 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
-  min-height: 100vh;
+  min-height: 100dvh;
   transition: background-color var(--transition-base), color var(--transition-base);
 }
 

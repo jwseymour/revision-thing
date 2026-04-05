@@ -282,6 +282,7 @@ VALUES ('resources', 'resources', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage RLS: users can only access their own folder
+DROP POLICY IF EXISTS "Users can upload to own folder" ON storage.objects;
 CREATE POLICY "Users can upload to own folder"
   ON storage.objects FOR INSERT
   WITH CHECK (
@@ -289,6 +290,7 @@ CREATE POLICY "Users can upload to own folder"
     auth.uid()::text = (storage.foldername(name))[1]
   );
 
+DROP POLICY IF EXISTS "Users can view own files" ON storage.objects;
 CREATE POLICY "Users can view own files"
   ON storage.objects FOR SELECT
   USING (
@@ -296,9 +298,33 @@ CREATE POLICY "Users can view own files"
     auth.uid()::text = (storage.foldername(name))[1]
   );
 
+DROP POLICY IF EXISTS "Users can delete own files" ON storage.objects;
 CREATE POLICY "Users can delete own files"
   ON storage.objects FOR DELETE
   USING (
     bucket_id = 'resources' AND
     auth.uid()::text = (storage.foldername(name))[1]
   );
+
+-- ============================================================
+-- 11. SUPERVISOR SESSIONS TABLE (Phase 3)
+-- ============================================================
+
+CREATE TABLE supervisor_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  module TEXT NOT NULL,
+  topic TEXT NOT NULL,
+  messages JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_supervisor_user ON supervisor_sessions(user_id);
+CREATE INDEX idx_supervisor_topic ON supervisor_sessions(user_id, module, topic);
+
+ALTER TABLE supervisor_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own supervisor sessions"
+  ON supervisor_sessions FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);

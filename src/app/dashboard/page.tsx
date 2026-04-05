@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { MasteryBar } from "@/components/MasteryBar";
 import { RecentActivity } from "@/components/RecentActivity";
+import { getDueTopics } from "@/lib/scheduling";
+import { getDailyTarget } from "@/lib/targets";
 import styles from "./page.module.css";
 
 const MASTERY_LABELS = [
@@ -29,11 +31,12 @@ export default async function DashboardPage() {
   // Fetch profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name")
+    .select("display_name, current_streak, longest_streak")
     .eq("id", user.id)
     .single();
 
   const displayName = profile?.display_name || user.email?.split("@")[0] || "Student";
+  const currentStreak = profile?.current_streak || 0;
 
   // Fetch counts
   const { count: resourceCount } = await supabase
@@ -55,6 +58,12 @@ export default async function DashboardPage() {
     .from("attempts")
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id);
+
+  // Fetch due topics for SM-2
+  const dueTopics = await getDueTopics(supabase, user.id);
+
+  // Fetch daily target info
+  const targetInfo = await getDailyTarget(supabase, user.id);
 
   // Fetch recent attempts
   const { data: recentAttempts } = await supabase
@@ -97,14 +106,42 @@ export default async function DashboardPage() {
     <div className={styles.dashboard}>
       {/* Welcome */}
       <div className={styles.welcome}>
-        <h1>
-          Welcome back, <span className="accent-text">{displayName}</span>
-        </h1>
-        <p className="text-muted">
-          {(totalAttempts ?? 0) > 0
-            ? `You've completed ${totalAttempts} practice attempts.`
-            : "Ready to start revising? Upload some PDFs to get started."}
-        </p>
+        <div className={styles.welcomeInfo}>
+          <h1>
+            Welcome back, <span className="accent-text">{displayName}</span>
+          </h1>
+          <p className="text-muted">
+            {(totalAttempts ?? 0) > 0
+              ? `You've completed ${totalAttempts} practice attempts.`
+              : "Ready to start revising? Upload some PDFs to get started."}
+          </p>
+          {dueTopics.length > 0 && (
+            <div style={{ marginTop: "var(--space-md)" }}>
+              <Link href="/dashboard/review" className="badge badge-danger" style={{ fontSize: "var(--font-size-sm)", padding: "var(--space-sm) var(--space-md)" }}>
+                ⏳ {dueTopics.length} topic{dueTopics.length !== 1 ? "s" : ""} due for review
+              </Link>
+            </div>
+          )}
+        </div>
+
+        <div className={styles.behaviourWidgets}>
+          <div className={`card ${styles.streakWidget}`}>
+            <span className={styles.streakEmoji}>{currentStreak > 0 ? "🔥" : "💤"}</span>
+            <div className={styles.streakInfo}>
+              <strong>{currentStreak} Day Streak</strong>
+              <small className="text-muted">Keep it up!</small>
+            </div>
+          </div>
+          <div className={`card ${styles.targetWidget}`}>
+            <div className={styles.targetProgress}>
+              <strong>{targetInfo.progressPercent}%</strong>
+            </div>
+            <div className={styles.targetInfo}>
+              <strong>Daily Target</strong>
+              <small className="text-muted">{targetInfo.completed} / {targetInfo.target} done</small>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}

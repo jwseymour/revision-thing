@@ -32,17 +32,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Map UI classification to DB ENUM classification_type
+    const uiToDbEnum: Record<string, string> = {
+      confident: "correct_confident",
+      guessed: "correct_guessed",
+      partial: "partial",
+      incorrect: "incorrect",
+    };
+
+    const dbClassification = uiToDbEnum[classification] || classification;
+
     // Insert attempt
-    const { error: insertError } = await supabase.from("attempts").insert({
+    const { data: attemptData, error: insertError } = await supabase.from("attempts").insert({
       user_id: user.id,
       item_id,
       item_type,
       module: moduleName,
       topic,
-      classification,
-      error_type: error_type || null,
+      classification: dbClassification,
+      error_classification: error_type || null, // UI sends error_type, DB expects error_classification
       notes: notes || null,
-    });
+    }).select().single();
 
     if (insertError) {
       return NextResponse.json(
@@ -50,6 +60,31 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // --- Phase 2 Integrations ---
+    
+    // Create mistake record if incorrect or partial
+    if ((dbClassification === "incorrect" || dbClassification === "partial") && error_type) {
+      await supabase.from("mistake_records").insert({
+        user_id: user.id,
+        attempt_id: attemptData.id,
+        error_type,
+        topic,
+        module: moduleName,
+        description: notes || null,
+        resolved: false,
+      });
+    }
+
+    // Update Schedule (SM-2)
+    const { updateSchedule } = await import("@/lib/scheduling");
+    await updateSchedule(supabase, user.id, moduleName, topic, dbClassification);
+
+    // --- Phase 3 Integrations ---
+    const { processStreak } = await import("@/lib/streaks");
+    await processStreak(supabase, user.id);
+
+    // --- Mastery Update ---
 
     // Recalculate mastery for this topic
     // Fetch recent attempts for this topic
@@ -69,8 +104,8 @@ export async function POST(request: NextRequest) {
       const totalWeight = weights.reduce((s, w) => s + w, 0);
 
       const classificationScores: Record<string, number> = {
-        confident: 100,
-        guessed: 55,
+        correct_confident: 100,
+        correct_guessed: 55,
         partial: 30,
         incorrect: 5,
       };
