@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import fs from "fs/promises";
+import path from "path";
 
 const TARGET_CHUNK_SIZE = 2000; // ~2000 characters per chunk
 const MIN_CHUNK_SIZE = 200; // Don't create tiny chunks
@@ -14,20 +16,16 @@ export interface TextChunk {
  * Returns the raw extracted text.
  */
 export async function extractTextFromPDF(filePath: string): Promise<string> {
-  const supabase = await createClient();
+  // Construct absolute path from the relative database path
+  // `filePath` is expected to be like "resources/part/paper/module/file.pdf"
+  const absolutePath = path.join(process.cwd(), "public", filePath);
 
-  // Download the file from Supabase Storage
-  const { data, error } = await supabase.storage
-    .from("resources")
-    .download(filePath);
-
-  if (error || !data) {
-    throw new Error(`Failed to download PDF: ${error?.message || "No data returned"}`);
+  let buffer: Buffer;
+  try {
+    buffer = await fs.readFile(absolutePath);
+  } catch (error) {
+    throw new Error(`Failed to read PDF from filesystem: ${(error as Error).message}`);
   }
-
-  // Convert blob to buffer
-  const arrayBuffer = await data.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
 
   // Use pdf-parse to extract text
   // Dynamic import because pdf-parse uses require() internally

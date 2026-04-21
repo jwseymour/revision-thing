@@ -84,12 +84,10 @@ async function sleep(ms: number) {
 export async function generateFromChunk(
   chunkText: string,
   moduleName: string,
-  topic: string,
   chunkIndex: number,
   totalChunks: number
 ): Promise<GeneratedContent> {
   const userPrompt = `Module: ${moduleName}
-Topic: ${topic}
 Chunk ${chunkIndex + 1} of ${totalChunks}
 
 ---

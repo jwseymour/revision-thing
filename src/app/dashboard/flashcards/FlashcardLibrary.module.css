@@ -1,0 +1,147 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-2xl);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-lg);
+}
+
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.05);
+  border-color: var(--border-default);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.typeTag {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+.statusDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.cardFront {
+  font-size: var(--font-size-md);
+  color: var(--text-primary);
+  font-weight: 500;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.cardBack {
+  max-height: 0;
+  opacity: 0;
+  transition: all var(--transition-base);
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+.expanded .cardBack {
+  max-height: 500px;
+  opacity: 1;
+  margin-top: var(--space-md);
+}
+
+.divider {
+  border: none;
+  border-top: 1px dashed var(--border-default);
+  margin: var(--space-md) 0;
+}
+
+.layout {
+  display: flex;
+  gap: var(--space-xl);
+  min-height: 60vh;
+}
+
+.sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-subtle);
+  padding-right: var(--space-xl);
+}
+
+.mainPane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.treeNode {
+  margin: var(--space-xs) 0;
+}
+
+.treeLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  cursor: pointer;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.treeLabel:hover {
+  background: var(--bg-tertiary);
+}
+
+.treeLabelActive {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.treeChildren {
+  margin-left: var(--space-md);
+  border-left: 1px solid var(--border-subtle);
+  padding-left: var(--space-xs);
+}
+
+.practiceHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-tertiary);
+  padding: var(--space-md) var(--space-xl);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-xl);
+}

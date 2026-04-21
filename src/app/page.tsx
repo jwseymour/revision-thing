@@ -67,14 +67,14 @@ export default function LandingPage() {
             <h3>Spaced Repetition</h3>
             <p>
               SM-2 scheduling ensures you review material at optimal intervals.
-              Topics resurface just before you forget them.
+              Modules resurface just before you forget them.
             </p>
           </div>
           <div className={styles["feature-card"]}>
             <div className={styles["feature-icon"]}>📊</div>
             <h3>Mastery Tracking</h3>
             <p>
-              Probabilistic mastery scores for every topic. See exactly where
+              Probabilistic mastery scores for every module. See exactly where
               you are strong, fragile, and where blind spots hide.
             </p>
           </div>

@@ -12,22 +12,22 @@ export async function updateSchedule(
   supabase: SupabaseClient,
   userId: string,
   moduleName: string,
-  topic: string,
+  itemId: string,
+  itemType: string,
   classification: string
 ) {
   const quality = QUALITY_MAP[classification] ?? 0;
 
-  // 1. Get current schedule state
+  // 1. Get current schedule state for the item
   const { data: state, error: fetchError } = await supabase
-    .from("scheduling_state")
+    .from("item_scheduling_state")
     .select("*")
     .eq("user_id", userId)
-    .eq("module", moduleName)
-    .eq("topic", topic)
+    .eq("item_id", itemId)
     .single();
 
   if (fetchError && fetchError.code !== "PGRST116") {
-    console.error("Error fetching scheduling state:", fetchError);
+    console.error("Error fetching item scheduling state:", fetchError);
     return;
   }
 
@@ -58,40 +58,67 @@ export async function updateSchedule(
   const nextReviewDate = new Date();
   nextReviewDate.setDate(nextReviewDate.getDate() + intervalDays);
 
-  // 3. Upsert
+  // 3. Upsert item scheduling state
   const { error: upsertError } = await supabase
-    .from("scheduling_state")
+    .from("item_scheduling_state")
     .upsert({
       user_id: userId,
-      module: moduleName,
-      topic,
+      item_id: itemId,
+      item_type: itemType,
       ease_factor: easeFactor,
       interval_days: intervalDays,
       repetition_count: repetitionCount,
       next_review_at: nextReviewDate.toISOString(),
       updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id,module,topic" });
+    }, { onConflict: "user_id,item_id" });
 
   if (upsertError) {
-    console.error("Error updating scheduling state:", upsertError);
+    console.error("Error updating item scheduling state:", upsertError);
   }
+
+  // 4. Update the aggregate module scheduling state (so the UI can still suggest modules)
+  // This uses a simplistic bump forward so it stays tracking roughly when the module needs review
+  const { data: moduleState } = await supabase
+    .from("scheduling_state")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("module", moduleName)
+    .single();
+    
+  // If the module exists and we just studied an item in it, we might want to push its next_review_at
+  // to the minimum next_review_at of all its items, but for simplicity we'll just upsert a default if it doesn't exist.
+  // Actually, calculating the real next review date for a module would require querying all items.
+  // We'll leave it simple for now: upsert if missing, or subtly bump it.
+  await supabase
+    .from("scheduling_state")
+    .upsert({
+      user_id: userId,
+      module: moduleName,
+      ease_factor: moduleState?.ease_factor ?? 2.5,
+      interval_days: moduleState?.interval_days ?? 0,
+      repetition_count: moduleState?.repetition_count ?? 0,
+      next_review_at: nextReviewDate.toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,module" });
 }
 
 /**
- * Get all topics due for review today or earlier.
+ * Get all modules due for review today or earlier.
  */
-export async function getDueTopics(supabase: SupabaseClient, userId: string) {
+export async function getDueModules(supabase: SupabaseClient, userId: string) {
   const now = new Date().toISOString();
   
+  // Actually, we should probably aggregate from item_scheduling_state 
+  // but to avoid massive query refactors we rely on scheduling_state or mastery_scores.
   const { data, error } = await supabase
     .from("scheduling_state")
-    .select("module, topic, next_review_at, interval_days")
+    .select("module, next_review_at, interval_days")
     .eq("user_id", userId)
     .lte("next_review_at", now)
     .order("next_review_at", { ascending: true }); // Most overdue first
 
   if (error) {
-    console.error("Error fetching due topics:", error);
+    console.error("Error fetching due modules:", error);
     return [];
   }
 

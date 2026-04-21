@@ -18,7 +18,11 @@ export default function LoginPage() {
       if (result?.error) {
         setError(result.error);
       }
-    } catch {
+    } catch (e: any) {
+      // Next.js redirect() throws a special error — let it propagate
+      if (e?.digest?.startsWith("NEXT_REDIRECT")) {
+        throw e;
+      }
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);

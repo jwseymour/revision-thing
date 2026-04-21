@@ -2,31 +2,30 @@ import { getMasteryColor } from "@/lib/mastery";
 import Link from "next/link";
 import styles from "./MasteryHeatmap.module.css";
 
-interface TopicCell {
+interface ModuleCell {
   moduleName: string;
-  topicName: string;
   score: number;
 }
 
 interface MasteryHeatmapProps {
-  topics: TopicCell[];
+  modules: ModuleCell[];
 }
 
-export function MasteryHeatmap({ topics }: MasteryHeatmapProps) {
-  if (topics.length === 0) return null;
+export function MasteryHeatmap({ modules }: MasteryHeatmapProps) {
+  if (modules.length === 0) return null;
 
   return (
     <div className={styles.container}>
       <div className={styles.grid}>
-        {topics.map((t) => (
+        {modules.map((m) => (
           <Link
-            key={`${t.moduleName}-${t.topicName}`}
-            href={`/dashboard/practice/${encodeURIComponent(t.moduleName)}/${encodeURIComponent(t.topicName)}`}
+            key={m.moduleName}
+            href={`/dashboard/practice/${encodeURIComponent(m.moduleName)}`}
             className={styles.cell}
-            style={{ backgroundColor: getMasteryColor(t.score) }}
-            title={`${t.topicName} (${t.moduleName}) — ${t.score}%`}
+            style={{ backgroundColor: getMasteryColor(m.score) }}
+            title={`${m.moduleName} — ${m.score}%`}
           >
-            <span className={styles.cellLabel}>{t.topicName}</span>
+            <span className={styles.cellLabel}>{m.moduleName}</span>
           </Link>
         ))}
       </div>

@@ -143,6 +143,7 @@
   flex: 1;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
+  position: relative;
 }
 
 .page-content {

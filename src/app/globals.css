@@ -671,3 +671,18 @@ code {
 .markdown-content .md-list-item {
   margin-bottom: var(--space-xs);
 }
+
+/* ============================================================
+   REACT-PDF FIXES
+   ============================================================ */
+
+.react-pdf__Page__textContent span {
+  color: transparent !important;
+  pointer-events: auto !important;
+}
+
+.react-pdf__Page__textContent {
+  user-select: text !important;
+  line-height: normal !important;
+}
+

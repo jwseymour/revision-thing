@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import fs from "fs/promises";
+import path from "path";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const ALLOWED_MIME_TYPES = ["application/pdf"];
@@ -22,14 +24,16 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
+    const part = formData.get("part") as string;
+    const paper = formData.get("paper") as string;
     const moduleName = formData.get("module") as string;
-    const topic = formData.get("topic") as string;
+    const resourceType = formData.get("type") as string || "notes";
     const files = formData.getAll("files") as File[];
 
     // Validate inputs
-    if (!moduleName || !topic) {
+    if (!part || !paper || !moduleName) {
       return NextResponse.json(
-        { error: "Module and topic are required." },
+        { error: "Part, paper, and module are required." },
         { status: 400 }
       );
     }
@@ -41,12 +45,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sanitise module/topic for file paths (replace spaces with hyphens, lowercase)
+    if (process.env.NODE_ENV !== "development") {
+      return NextResponse.json(
+        { error: "File system uploads are only supported in local development." },
+        { status: 403 }
+      );
+    }
+
+    // Sanitise folder names for file paths (replace spaces with hyphens, lowercase)
     const sanitise = (s: string) =>
       s.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
 
+    const sanitisedPart = sanitise(part);
+    const sanitisedPaper = sanitise(paper);
     const sanitisedModule = sanitise(moduleName);
-    const sanitisedTopic = sanitise(topic);
+
+    const basePath = path.join(process.cwd(), "public", "resources", sanitisedPart, sanitisedPaper, sanitisedModule);
+
+    // Ensure directory exists
+    await fs.mkdir(basePath, { recursive: true });
 
     const results: {
       id: string;
@@ -78,24 +95,20 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Build storage path
-      const storagePath = `${user.id}/${sanitisedModule}/${sanitisedTopic}/${file.name}`;
+      // Build relative storage path for DB
+      const relativePath = `resources/${sanitisedPart}/${sanitisedPaper}/${sanitisedModule}/${file.name}`;
+      const absolutePath = path.join(basePath, file.name);
 
-      // Upload to Supabase Storage
-      const fileBuffer = await file.arrayBuffer();
-      const { error: uploadError } = await supabase.storage
-        .from("resources")
-        .upload(storagePath, fileBuffer, {
-          contentType: file.type,
-          upsert: true,
-        });
-
-      if (uploadError) {
+      // Save to local File System
+      try {
+        const fileBuffer = Buffer.from(await file.arrayBuffer());
+        await fs.writeFile(absolutePath, fileBuffer);
+      } catch (uploadError) {
         results.push({
           id: "",
           file_name: file.name,
           status: "error",
-          error: `Upload failed: ${uploadError.message}`,
+          error: `Upload failed: ${uploadError}`,
         });
         continue;
       }
@@ -104,20 +117,22 @@ export async function POST(request: NextRequest) {
       const { data: resource, error: dbError } = await supabase
         .from("resources")
         .insert({
-          user_id: user.id,
+          user_id: user.id, // we still capture the uploader
+          part: part.trim(),
+          paper: paper.trim(),
           module: moduleName.trim(),
-          topic: topic.trim(),
-          file_path: storagePath,
+          file_path: relativePath,
           file_name: file.name,
           file_size_bytes: file.size,
           status: "pending",
+          type: resourceType,
         })
         .select("id, file_name, status")
         .single();
 
       if (dbError) {
-        // Try to clean up the uploaded file
-        await supabase.storage.from("resources").remove([storagePath]);
+        // Try to clean up local file
+        await fs.unlink(absolutePath).catch(() => {});
         results.push({
           id: "",
           file_name: file.name,

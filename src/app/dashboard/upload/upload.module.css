@@ -1,21 +1,70 @@
 .page {
   animation: fadeIn 0.4s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
-  margin-bottom: var(--space-2xl);
+  margin-bottom: var(--space-lg);
 }
 
 .header h1 {
   margin-bottom: var(--space-sm);
 }
 
-/* --- INPUTS --- */
-.inputs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-lg);
+.header p {
+  font-size: 1.125rem;
+}
+
+.splitLayout {
+  display: flex;
+  gap: var(--space-xl);
+  height: calc(100vh - 200px);
+  margin-top: var(--space-lg);
+}
+
+.treePane {
+  flex: 0 0 320px;
+  height: 100%;
+}
+
+.workspacePane {
+  flex: 1;
+  background-color: var(--surface-hover);
+  border-radius: var(--radius-md);
+  padding: var(--space-2xl);
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.workspaceHeader {
   margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.workspaceHeader h2 {
+  font-size: 1.5rem;
+  margin: 0 0 var(--space-xs) 0;
+}
+
+.emptyWorkspace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  padding: var(--space-3xl);
+  opacity: 0.7;
+}
+
+.emptyIcon {
+  font-size: 4rem;
+  margin-bottom: var(--space-md);
 }
 
 /* --- FILE LIST --- */
@@ -139,11 +188,8 @@
 
 /* --- RESPONSIVE --- */
 @media (max-width: 768px) {
-  .inputs {
-    grid-template-columns: 1fr;
-  }
-
-  .actions {
+  .splitLayout {
     flex-direction: column;
+    height: auto;
   }
 }

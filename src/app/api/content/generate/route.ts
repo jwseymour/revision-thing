@@ -34,7 +34,6 @@ export async function POST(request: NextRequest) {
       .from("resources")
       .select("*")
       .eq("id", resource_id)
-      .eq("user_id", user.id)
       .single();
 
     if (fetchError || !resource) {
@@ -74,7 +73,6 @@ export async function POST(request: NextRequest) {
         const generated = await generateFromChunk(
           chunk.text,
           resource.module,
-          resource.topic,
           chunk.index,
           chunk.totalChunks
         );
@@ -85,7 +83,6 @@ export async function POST(request: NextRequest) {
             resource_id: resource_id,
             user_id: user.id,
             module: resource.module,
-            topic: resource.topic,
             front: fc.front,
             back: fc.back,
             difficulty: fc.difficulty,
@@ -109,7 +106,6 @@ export async function POST(request: NextRequest) {
             resource_id: resource_id,
             user_id: user.id,
             module: resource.module,
-            topic: resource.topic,
             text: q.text,
             difficulty: q.difficulty,
             tags: q.tags,

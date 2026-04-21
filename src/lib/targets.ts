@@ -1,12 +1,12 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { getDueTopics } from "./scheduling";
+import { getDueModules } from "./scheduling";
 
 export async function getDailyTarget(supabase: SupabaseClient, userId: string) {
-  const dueTopics = await getDueTopics(supabase, userId);
+  const dueModules = await getDueModules(supabase, userId);
   
-  // Base target of 20 questions/flashcards, plus a factor for how many topics are due
-  const dueCount = dueTopics.length;
-  // Let's say we expect ~5 questions per due topic
+  // Base target of 20 questions/flashcards, plus a factor for how many modules are due
+  const dueCount = dueModules.length;
+  // Let's say we expect ~5 questions per due module
   const targetItems = 20 + dueCount * 5;
 
   // Find attempts today

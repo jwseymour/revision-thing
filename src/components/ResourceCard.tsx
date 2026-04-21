@@ -7,20 +7,11 @@ interface ResourceCardProps {
   id: string;
   fileName: string;
   module: string;
-  topic: string;
-  status: string;
+  type: string;
   fileSizeBytes: number | null;
   createdAt: string;
   onDelete?: (id: string) => void;
-  onGenerate?: (id: string) => void;
 }
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  pending: { label: "Pending", className: "badge-warning" },
-  processing: { label: "Processing...", className: "badge-info" },
-  ready: { label: "Ready", className: "badge-success" },
-  error: { label: "Error", className: "badge-danger" },
-};
 
 function formatFileSize(bytes: number | null): string {
   if (!bytes) return "—";
@@ -44,15 +35,12 @@ export function ResourceCard({
   id,
   fileName,
   module: moduleName,
-  topic,
-  status,
+  type,
   fileSizeBytes,
   createdAt,
   onDelete,
-  onGenerate,
 }: ResourceCardProps) {
   const [deleting, setDeleting] = useState(false);
-  const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
 
   async function handleDelete() {
     if (!confirm(`Delete "${fileName}"? This will also remove any generated content.`)) return;
@@ -73,7 +61,7 @@ export function ResourceCard({
     }
   }
 
-  const contentUrl = `/dashboard/content/${encodeURIComponent(moduleName)}/${encodeURIComponent(topic)}`;
+  const contentUrl = `/dashboard/content/${encodeURIComponent(moduleName)}`;
 
   return (
     <div className={styles.card}>
@@ -87,20 +75,16 @@ export function ResourceCard({
         </div>
       </div>
       <div className={styles.actions}>
-        <span className={`badge ${statusConfig.className}`}>
-          {statusConfig.label}
+        <span className={`badge badge-info`}>
+          {type === 'past_paper' ? "Past Exam Paper" : "Lecture Material"}
         </span>
-        {status === "pending" && onGenerate && (
-          <button
-            onClick={() => onGenerate(id)}
-            className="btn btn-primary btn-sm"
-          >
-            Generate Content
-          </button>
-        )}
-        {status === "ready" && (
-          <a href={contentUrl} className="btn btn-secondary btn-sm">
-            View Content
+        {type === "past_paper" ? (
+          <a href={`/dashboard/workspace/${id}`} className="btn btn-secondary btn-sm">
+            Attempt Exam
+          </a>
+        ) : (
+          <a href={`/dashboard/workspace/${id}`} className="btn btn-primary btn-sm">
+            Read & Annotate
           </a>
         )}
         <button

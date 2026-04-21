@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const { data: mistakes, error: fetchError } = await supabase
       .from("mistake_records")
       .select(`
-        id, error_type, topic, module, description, created_at, resolved,
+        id, error_type, module, description, created_at, resolved,
         attempts ( item_id, item_type )
       `)
       .eq("user_id", user.id)

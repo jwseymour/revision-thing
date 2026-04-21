@@ -1,9 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { getDueTopics } from "@/lib/scheduling";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import styles from "./review.module.css";
-import { MasteryBar } from "@/components/MasteryBar";
+import { ReviewSession } from "./ReviewSession";
 
 export default async function ReviewPage() {
   const supabase = await createClient();
@@ -14,78 +11,52 @@ export default async function ReviewPage() {
 
   if (!user) redirect("/login");
 
-  const dueTopics = await getDueTopics(supabase, user.id);
+  // Fetch due items
+  const { data: dueItems } = await supabase
+    .from("item_scheduling_state")
+    .select('*')
+    .eq("user_id", user.id)
+    .eq("item_type", "flashcard")
+    .lte("next_review_at", new Date().toISOString())
+    .order("next_review_at", { ascending: true })
+    .limit(50);
 
-  // Fetch mastery scores to display alongside due topics
-  const { data: masteryScores } = await supabase
-    .from("mastery_scores")
-    .select("module, topic, score")
-    .eq("user_id", user.id);
+  const itemIds = dueItems?.map(d => d.item_id) || [];
+  
+  let validDueItems: any[] = [];
 
-  const mergedTopics = dueTopics.map((dt) => {
-    const ms = masteryScores?.find((m) => m.module === dt.module && m.topic === dt.topic);
-    
-    // Calculate days overdue
-    const diffMs = Date.now() - new Date(dt.next_review_at).getTime();
-    const daysOverdue = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    return {
-      ...dt,
-      mastery: ms?.score ?? 0,
-      daysOverdue: Math.max(0, daysOverdue),
-    };
-  });
+  if (itemIds.length > 0) {
+    const { data: flashcards } = await supabase
+      .from("flashcards")
+      .select('id, front, back, card_type, cascade_content, module')
+      .in('id', itemIds);
+
+    validDueItems = (dueItems || []).map(item => {
+      const flashcard = flashcards?.find(fc => fc.id === item.item_id);
+      return {
+        schedule: { id: item.id, ease_factor: item.ease_factor, interval_days: item.interval_days, repetition_count: item.repetition_count },
+        flashcard
+      };
+    }).filter(item => item.flashcard);
+  }
 
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
-        <h1>Due Today</h1>
-        <p className="text-muted">Topics scheduled for spaced repetition review.</p>
+    <div>
+      <div style={{ marginBottom: "var(--space-2xl)" }}>
+        <h1>Daily Review</h1>
+        <p className="text-muted">Master your material with active recall.</p>
       </div>
 
-      {mergedTopics.length === 0 ? (
-        <div className={`card ${styles.emptyState}`}>
-          <div className={styles.emptyIcon}>🎉</div>
-          <h2>All caught up!</h2>
-          <p className="text-muted">You have no pending reviews scheduled for today.</p>
-          <Link href="/dashboard/modules" className="btn btn-secondary" style={{ marginTop: "var(--space-md)" }}>
-            Browse Modules
-          </Link>
+      {validDueItems.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "var(--space-3xl)", background: "var(--bg-secondary)", borderRadius: "var(--radius-lg)" }}>
+          <h2>🎉 You're all caught up!</h2>
+          <p className="text-muted">No flashcards due for review right now. Go back to the library and read more notes to generate cards.</p>
+          <a href="/dashboard" className="btn btn-primary" style={{ marginTop: "var(--space-lg)", display: "inline-block" }}>
+            Return to Library
+          </a>
         </div>
       ) : (
-        <div className={styles.grid}>
-          {mergedTopics.map((topic) => (
-            <div key={`${topic.module}-${topic.topic}`} className={`card card-hover ${styles.reviewCard}`}>
-              <div className={styles.info}>
-                <h3 className={styles.topicName}>{topic.topic}</h3>
-                <span className={styles.moduleName}>{topic.module}</span>
-                
-                <div className={styles.meta}>
-                  <div className={styles.badgeWrap}>
-                    {topic.daysOverdue > 0 ? (
-                      <span className="badge badge-danger">{topic.daysOverdue} days overdue</span>
-                    ) : (
-                      <span className="badge badge-warning">Due today</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.masteryCol}>
-                <MasteryBar value={topic.mastery} size="sm" />
-              </div>
-
-              <div className={styles.actions}>
-                <Link
-                  href={`/dashboard/practice/${encodeURIComponent(topic.module)}/${encodeURIComponent(topic.topic)}`}
-                  className="btn btn-primary"
-                >
-                  Review Now
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
+        <ReviewSession initialItems={validDueItems} />
       )}
     </div>
   );

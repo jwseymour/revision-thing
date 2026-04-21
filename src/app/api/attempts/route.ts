@@ -19,15 +19,13 @@ export async function POST(request: NextRequest) {
       item_id,
       item_type,
       module: moduleName,
-      topic,
       classification,
       error_type,
       notes,
     } = body;
 
-    if (!item_id || !item_type || !moduleName || !topic || !classification) {
-      return NextResponse.json(
-        { error: "Missing required fields: item_id, item_type, module, topic, classification" },
+    if (!item_id || !item_type || !moduleName || !classification) {
+        { error: "Missing required fields: item_id, item_type, module, classification" },
         { status: 400 }
       );
     }
@@ -48,7 +46,6 @@ export async function POST(request: NextRequest) {
       item_id,
       item_type,
       module: moduleName,
-      topic,
       classification: dbClassification,
       error_classification: error_type || null, // UI sends error_type, DB expects error_classification
       notes: notes || null,
@@ -69,7 +66,6 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         attempt_id: attemptData.id,
         error_type,
-        topic,
         module: moduleName,
         description: notes || null,
         resolved: false,
@@ -78,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     // Update Schedule (SM-2)
     const { updateSchedule } = await import("@/lib/scheduling");
-    await updateSchedule(supabase, user.id, moduleName, topic, dbClassification);
+    await updateSchedule(supabase, user.id, moduleName, item_id, item_type, dbClassification);
 
     // --- Phase 3 Integrations ---
     const { processStreak } = await import("@/lib/streaks");
@@ -86,14 +82,13 @@ export async function POST(request: NextRequest) {
 
     // --- Mastery Update ---
 
-    // Recalculate mastery for this topic
-    // Fetch recent attempts for this topic
+    // Recalculate mastery for this module
+    // Fetch recent attempts for this module
     const { data: recentAttempts } = await supabase
       .from("attempts")
       .select("classification, created_at")
       .eq("user_id", user.id)
       .eq("module", moduleName)
-      .eq("topic", topic)
       .order("created_at", { ascending: false })
       .limit(20);
 
@@ -125,11 +120,10 @@ export async function POST(request: NextRequest) {
         {
           user_id: user.id,
           module: moduleName,
-          topic,
           score: mastery,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "user_id,module,topic" }
+        { onConflict: "user_id,module" }
       );
 
     if (masteryError) {

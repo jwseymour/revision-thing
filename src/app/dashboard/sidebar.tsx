@@ -8,14 +8,11 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import styles from "./dashboard.module.css";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/dashboard/review", label: "Due Today", icon: "🗓️" },
-  { href: "/dashboard/mistakes", label: "Mistakes", icon: "🔍" },
-  { href: "/dashboard/supervisor", label: "Supervisor", icon: "🎓" },
-  { href: "/dashboard/modules", label: "Modules", icon: "📚" },
-  { href: "/dashboard/upload", label: "Upload", icon: "📄" },
-  { href: "/dashboard/resources", label: "Resources", icon: "📂" },
-  { href: "/dashboard/progress", label: "Progress", icon: "📈" },
+  { href: "/dashboard", label: "Library", icon: "📚" },
+  { href: "/dashboard/flashcards", label: "Flashcards", icon: "🗂️" },
+  { href: "/dashboard/review", label: "Daily Review", icon: "🗓️" },
+  { href: "/dashboard/supervisor", label: "AI Supervisor", icon: "🤖" },
+  { href: "/dashboard/upload", label: "Admin Upload", icon: "📄" },
 ];
 
 export function Sidebar({ userName, userEmail }: { userName: string; userEmail: string }) {

@@ -4,7 +4,6 @@ import styles from "./ModuleCard.module.css";
 
 interface ModuleCardProps {
   name: string;
-  topicCount: number;
   flashcardCount: number;
   questionCount: number;
   mastery: number;
@@ -12,7 +11,6 @@ interface ModuleCardProps {
 
 export function ModuleCard({
   name,
-  topicCount,
   flashcardCount,
   questionCount,
   mastery,
@@ -24,9 +22,6 @@ export function ModuleCard({
     >
       <div className={styles.header}>
         <h3 className={styles.name}>{name}</h3>
-        <span className={styles.topicCount}>
-          {topicCount} topic{topicCount !== 1 ? "s" : ""}
-        </span>
       </div>
       <div className={styles.stats}>
         <div className={styles.stat}>

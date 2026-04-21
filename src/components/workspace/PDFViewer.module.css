@@ -1,0 +1,166 @@
+.viewerContainer {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: auto;
+  position: relative;
+  background: var(--bg-tertiary);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-xl) 0;
+}
+
+.document {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  align-items: flex-start;
+  margin: 0 auto;
+}
+
+.pageWrapper {
+  position: relative;
+  overflow: visible; /* Need overflow visible for the gutter markers */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  background: #ffffff;
+  max-width: 100%;
+}
+
+.page {
+  display: block !important;
+}
+
+:global(.react-pdf__Page__textContent) {
+  color: transparent !important;
+  
+  ::selection {
+    background: rgba(138, 180, 248, 0.4);
+    color: transparent !important;
+  }
+}
+
+.loading, .error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  height: 100%;
+  color: var(--text-secondary);
+}
+
+.error {
+  color: var(--status-error);
+}
+
+.gutterMarker {
+  width: 6px;
+  border-radius: 4px;
+  opacity: 0.8;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  z-index: 10;
+}
+
+.gutterMarker:hover {
+  opacity: 1;
+  width: 8px;
+  left: -10px !important;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.commentIcon {
+  transition: transform var(--transition-fast);
+  opacity: 0.8;
+}
+
+.commentIcon:hover {
+  transform: scale(1.2);
+  opacity: 1;
+}
+
+.marginaliaTrack {
+  position: relative;
+  width: 300px;
+  flex-shrink: 0;
+  height: 100%; /* Spans the full height of its adjacent Page */
+  pointer-events: none; /* Let non-card areas be clicked through */
+}
+
+.marginaliaCard {
+  position: absolute;
+  width: 100%;
+  pointer-events: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-left: 4px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  line-height: 1.5;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.marginaliaCard:hover {
+  transform: translateX(-4px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+  z-index: 50;
+}
+
+.marginaliaHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-xs);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewModal {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-sm);
+}
+
+.header h3 {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--text-primary);
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}

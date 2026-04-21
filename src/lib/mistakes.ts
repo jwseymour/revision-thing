@@ -3,7 +3,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 export async function getMistakePatterns(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase
     .from("mistake_records")
-    .select("topic, error_type")
+    .select("module, error_type")
     .eq("user_id", userId);
 
   if (error) {
@@ -18,7 +18,7 @@ export async function getUnresolvedMistakes(supabase: SupabaseClient, userId: st
   const { data, error } = await supabase
     .from("mistake_records")
     .select(`
-      id, created_at, error_type, topic, module, description,
+      id, created_at, error_type, module, description,
       attempts!inner (
         item_id, item_type
       )

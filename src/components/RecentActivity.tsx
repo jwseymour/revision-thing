@@ -4,7 +4,6 @@ interface AttemptRecord {
   id: string;
   item_type: string;
   module: string;
-  topic: string;
   classification: string;
   created_at: string;
 }
@@ -49,9 +48,9 @@ export function RecentActivity({ attempts }: RecentActivityProps) {
           <div key={a.id} className={styles.item}>
             <span className={styles.icon}>{config.icon}</span>
             <div className={styles.info}>
-              <span className={styles.topic}>{a.topic}</span>
+              <span className={styles.moduleName}>{a.module}</span>
               <span className={styles.meta}>
-                {a.module} • {a.item_type}
+                {a.item_type}
               </span>
             </div>
             <span className={styles.time}>{timeAgo(a.created_at)}</span>

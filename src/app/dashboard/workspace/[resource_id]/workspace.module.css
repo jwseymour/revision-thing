@@ -1,0 +1,22 @@
+.page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md);
+}
+
+.header {
+  margin-bottom: var(--space-md);
+  flex-shrink: 0;
+}
+
+.workspaceWrapper {
+  flex: 1;
+  min-height: 0; /* Important for deeply nested flex shrinking */
+  display: flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-secondary);
+}

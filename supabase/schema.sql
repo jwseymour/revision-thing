@@ -7,6 +7,17 @@
 -- 1. CUSTOM TYPES (ENUMS)
 -- ============================================================
 
+CREATE TYPE resource_type AS ENUM (
+  'notes',
+  'past_paper'
+);
+
+CREATE TYPE flashcard_type AS ENUM (
+  'statement',
+  'qna',
+  'deep_dive'
+);
+
 CREATE TYPE classification_type AS ENUM (
   'correct_confident',
   'correct_guessed',
@@ -86,26 +97,37 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
 
 CREATE TABLE resources (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  part TEXT,
+  paper TEXT,
   module TEXT NOT NULL,
-  topic TEXT NOT NULL,
   file_path TEXT NOT NULL,
   file_name TEXT NOT NULL,
   file_size_bytes BIGINT,
   status resource_status DEFAULT 'pending',
+  type resource_type DEFAULT 'notes',
   error_message TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_resources_user ON resources(user_id);
-CREATE INDEX idx_resources_module_topic ON resources(user_id, module, topic);
+CREATE INDEX idx_resources_module ON resources(module);
 
 ALTER TABLE resources ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view resources"
+  ON resources FOR SELECT
+  USING (true);
 
 CREATE POLICY "Users can manage own resources"
   ON resources FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Authenticated users can insert global resources"
+  ON resources FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL);
+
 
 -- ============================================================
 -- 4. FLASHCARDS TABLE
@@ -116,16 +138,18 @@ CREATE TABLE flashcards (
   resource_id UUID REFERENCES resources(id) ON DELETE SET NULL,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   module TEXT NOT NULL,
-  topic TEXT NOT NULL,
   front TEXT NOT NULL,
   back TEXT NOT NULL,
   difficulty INT CHECK (difficulty >= 1 AND difficulty <= 5) DEFAULT 3,
   tags TEXT[] DEFAULT '{}',
+  card_type flashcard_type DEFAULT 'qna',
+  source_rects JSONB,
+  cascade_content JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_flashcards_user ON flashcards(user_id);
-CREATE INDEX idx_flashcards_module_topic ON flashcards(user_id, module, topic);
+CREATE INDEX idx_flashcards_module ON flashcards(user_id, module);
 
 ALTER TABLE flashcards ENABLE ROW LEVEL SECURITY;
 
@@ -143,7 +167,6 @@ CREATE TABLE questions (
   resource_id UUID REFERENCES resources(id) ON DELETE SET NULL,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   module TEXT NOT NULL,
-  topic TEXT NOT NULL,
   text TEXT NOT NULL,
   difficulty INT CHECK (difficulty >= 1 AND difficulty <= 5) DEFAULT 3,
   tags TEXT[] DEFAULT '{}',
@@ -154,7 +177,7 @@ CREATE TABLE questions (
 );
 
 CREATE INDEX idx_questions_user ON questions(user_id);
-CREATE INDEX idx_questions_module_topic ON questions(user_id, module, topic);
+CREATE INDEX idx_questions_module ON questions(user_id, module);
 
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
 
@@ -197,13 +220,12 @@ CREATE TABLE mastery_scores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   module TEXT NOT NULL,
-  topic TEXT NOT NULL,
   score REAL DEFAULT 0 CHECK (score >= 0 AND score <= 100),
   total_attempts INT DEFAULT 0,
   correct_attempts INT DEFAULT 0,
   last_attempt_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, module, topic)
+  UNIQUE(user_id, module)
 );
 
 CREATE INDEX idx_mastery_user ON mastery_scores(user_id);
@@ -224,13 +246,12 @@ CREATE TABLE scheduling_state (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   module TEXT NOT NULL,
-  topic TEXT NOT NULL,
   ease_factor REAL DEFAULT 2.5,
   interval_days INT DEFAULT 0,
   next_review_at TIMESTAMPTZ DEFAULT NOW(),
   repetition_count INT DEFAULT 0,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, module, topic)
+  UNIQUE(user_id, module)
 );
 
 CREATE INDEX idx_scheduling_user ON scheduling_state(user_id);
@@ -244,6 +265,35 @@ CREATE POLICY "Users can manage own scheduling state"
   WITH CHECK (auth.uid() = user_id);
 
 -- ============================================================
+-- 8b. ITEM SCHEDULING STATE TABLE (Per-card SM-2)
+-- ============================================================
+
+CREATE TABLE item_scheduling_state (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  item_id UUID NOT NULL,
+  item_type TEXT NOT NULL CHECK (item_type IN ('flashcard', 'question')),
+  ease_factor REAL DEFAULT 2.5,
+  interval_days INT DEFAULT 0,
+  next_review_at TIMESTAMPTZ DEFAULT NOW(),
+  repetition_count INT DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, item_id)
+);
+
+CREATE INDEX idx_item_scheduling_user ON item_scheduling_state(user_id);
+CREATE INDEX idx_item_scheduling_item ON item_scheduling_state(item_id);
+CREATE INDEX idx_item_scheduling_next_review ON item_scheduling_state(user_id, next_review_at);
+
+ALTER TABLE item_scheduling_state ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own item scheduling state"
+  ON item_scheduling_state FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+
+-- ============================================================
 -- 9. MISTAKE RECORDS TABLE (Phase 2)
 -- ============================================================
 
@@ -252,7 +302,6 @@ CREATE TABLE mistake_records (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   attempt_id UUID NOT NULL REFERENCES attempts(id) ON DELETE CASCADE,
   error_type error_type NOT NULL,
-  topic TEXT NOT NULL,
   module TEXT NOT NULL,
   description TEXT,
   resolved BOOLEAN DEFAULT FALSE,
@@ -260,7 +309,7 @@ CREATE TABLE mistake_records (
 );
 
 CREATE INDEX idx_mistakes_user ON mistake_records(user_id);
-CREATE INDEX idx_mistakes_topic ON mistake_records(user_id, module, topic);
+CREATE INDEX idx_mistakes_module ON mistake_records(user_id, module);
 CREATE INDEX idx_mistakes_unresolved ON mistake_records(user_id, resolved) WHERE resolved = FALSE;
 
 ALTER TABLE mistake_records ENABLE ROW LEVEL SECURITY;
@@ -314,17 +363,64 @@ CREATE TABLE supervisor_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   module TEXT NOT NULL,
-  topic TEXT NOT NULL,
   messages JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_supervisor_user ON supervisor_sessions(user_id);
-CREATE INDEX idx_supervisor_topic ON supervisor_sessions(user_id, module, topic);
+CREATE INDEX idx_supervisor_module ON supervisor_sessions(user_id, module);
 
 ALTER TABLE supervisor_sessions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can manage own supervisor sessions"
   ON supervisor_sessions FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================
+-- 12. ANNOTATIONS TABLE
+-- ============================================================
+
+CREATE TABLE annotations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  resource_id UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  source_rects JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_annotations_user ON annotations(user_id);
+CREATE INDEX idx_annotations_resource ON annotations(resource_id);
+
+ALTER TABLE annotations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own annotations"
+  ON annotations FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================
+-- 13. PAST PAPER ANSWERS TABLE
+-- ============================================================
+
+CREATE TABLE past_paper_answers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  resource_id UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+  answer_text TEXT NOT NULL,
+  status TEXT DEFAULT 'in_progress',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, resource_id)
+);
+
+CREATE INDEX idx_past_paper_answers_user ON past_paper_answers(user_id);
+CREATE INDEX idx_past_paper_answers_resource ON past_paper_answers(resource_id);
+
+ALTER TABLE past_paper_answers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own past paper answers"
+  ON past_paper_answers FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
