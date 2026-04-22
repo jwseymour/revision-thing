@@ -6,9 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 
 interface PastPaperPanelProps {
   resourceId: string;
+  onTabSwitch: (tab: "past_paper" | "supervisor") => void;
 }
 
-export function PastPaperPanel({ resourceId }: PastPaperPanelProps) {
+export function PastPaperPanel({ resourceId, onTabSwitch }: PastPaperPanelProps) {
   const [answer, setAnswer] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const supabase = createClient();
@@ -46,23 +47,38 @@ export function PastPaperPanel({ resourceId }: PastPaperPanelProps) {
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h3>Your Answers</h3>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', alignItems: 'center' }}>
         <button 
-          onClick={handleSave} 
-          className="btn btn-primary btn-sm"
-          disabled={isSaving}
+          style={{ padding: 'var(--space-md) var(--space-lg)', background: 'var(--bg-primary)', border: 'none', borderBottom: '2px solid var(--accent-primary)', color: 'var(--accent-primary)', fontFamily: 'var(--font-geist-mono)', fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', transition: 'all var(--transition-fast)' }}
         >
-          {isSaving ? "Saving..." : "Save Progress"}
+          Answers
+        </button>
+        <button 
+          style={{ padding: 'var(--space-md) var(--space-lg)', background: 'none', border: 'none', borderBottom: '2px solid transparent', color: 'var(--text-secondary)', fontFamily: 'var(--font-geist-mono)', fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', transition: 'all var(--transition-fast)' }}
+          onClick={() => onTabSwitch("supervisor")}
+        >
+          AI Supervisor
         </button>
       </div>
-      <textarea
-        className={styles.textarea}
-        placeholder="Type your answers here... You can talk to the AI Supervisor on the next tab for hints."
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
-      />
+      <div className={styles.container} style={{ flexGrow: 1 }}>
+        <div className={styles.header}>
+          <h3>Your Answers</h3>
+          <button 
+            onClick={handleSave} 
+            className="btn btn-primary btn-sm"
+            disabled={isSaving}
+          >
+            {isSaving ? "Saving..." : "Save Progress"}
+          </button>
+        </div>
+        <textarea
+          className={styles.textarea}
+          placeholder="Type your answers here... You can talk to the AI Supervisor on the next tab for hints."
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+        />
+      </div>
     </div>
   );
 }

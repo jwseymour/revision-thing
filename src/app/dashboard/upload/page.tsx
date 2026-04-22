@@ -208,6 +208,7 @@ export default function UploadPage() {
       // Force reload resources list to show newly uploaded files immediately
       supabase.from("resources").select("id, part, paper, module, file_path, type")
         .then(({ data }) => setResources(data || []));
+      router.refresh();
     } catch {
       setFiles((prev) => prev.map((f) => f.status === "uploading" ? { ...f, status: "error", progress: 0, error: "Network error" } : f));
     } finally {

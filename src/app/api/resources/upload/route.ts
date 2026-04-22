@@ -1,7 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
+import * as fsSync from "fs";
 import path from "path";
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const ALLOWED_MIME_TYPES = ["application/pdf"];
@@ -65,6 +69,42 @@ export async function POST(request: NextRequest) {
     // Ensure directory exists
     await fs.mkdir(basePath, { recursive: true });
 
+    // Ensure OpenAI Assistant and Vector Store exist for this module
+    let vectorStoreId: string | undefined;
+    
+    // Using service role bypassing RLS for system operations? No, User is authenticated.
+    const { data: existingAssistant } = await supabase
+      .from("module_assistants")
+      .select("*")
+      .eq("module", moduleName)
+      .single();
+
+    if (existingAssistant) {
+      vectorStoreId = existingAssistant.openai_vector_store_id;
+    } else {
+      console.log(`Creating new OpenAI Vector Store and Assistant for ${moduleName}`);
+      const vectorStore = await openai.vectorStores.create({ name: `tripos_${sanitisedModule}_vs` });
+      vectorStoreId = vectorStore.id;
+      
+      const assistant = await openai.beta.assistants.create({
+        name: `Tripos Supervisor: ${moduleName}`,
+        instructions: `You are a Cambridge Computer Science supervisor. Use the provided course notes to aggressively challenge the student's understanding via Socratic questioning. Do not provide direct answers. Demand rigorous logic.`,
+        model: "gpt-4o",
+        tools: [{ type: "file_search" }],
+        tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }
+      });
+
+      const { error: assistantError } = await supabase.from("module_assistants").insert({
+        module: moduleName,
+        openai_assistant_id: assistant.id,
+        openai_vector_store_id: vectorStore.id
+      });
+      if (assistantError) {
+         console.error("Failed to insert module_assistant mapping:", assistantError);
+         return NextResponse.json({ error: `Assistant Mapping Error: ${assistantError.message}` }, { status: 500 });
+      }
+    }
+
     const results: {
       id: string;
       file_name: string;
@@ -99,7 +139,7 @@ export async function POST(request: NextRequest) {
       const relativePath = `resources/${sanitisedPart}/${sanitisedPaper}/${sanitisedModule}/${file.name}`;
       const absolutePath = path.join(basePath, file.name);
 
-      // Save to local File System
+      // 1. Save to local File System
       try {
         const fileBuffer = Buffer.from(await file.arrayBuffer());
         await fs.writeFile(absolutePath, fileBuffer);
@@ -113,7 +153,25 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Insert resource record into DB
+      // 2. Upload to OpenAI
+      let openaiFileId = null;
+      try {
+        const openAiFile = await openai.files.create({
+          file: fsSync.createReadStream(absolutePath),
+          purpose: "assistants",
+        });
+        openaiFileId = openAiFile.id;
+
+        // 3. Attach file to the Module Vector Store
+        if (vectorStoreId) {
+           await openai.vectorStores.files.create(vectorStoreId, { file_id: openaiFileId });
+        }
+      } catch (oaiError: any) {
+        console.error("OpenAI Upload Error:", oaiError);
+        // We will continue so at least local works, but log it
+      }
+
+      // 4. Insert resource record into DB
       const { data: resource, error: dbError } = await supabase
         .from("resources")
         .insert({
@@ -124,8 +182,9 @@ export async function POST(request: NextRequest) {
           file_path: relativePath,
           file_name: file.name,
           file_size_bytes: file.size,
-          status: "pending",
+          status: "ready", // Hardcode ready if processed
           type: resourceType,
+          openai_file_id: openaiFileId
         })
         .select("id, file_name, status")
         .single();

@@ -35,7 +35,6 @@
 }
 
 .sidebar-nav {
-  flex: 1;
   padding: var(--space-md);
   display: flex;
   flex-direction: column;
@@ -144,6 +143,8 @@
   margin-left: var(--sidebar-width);
   min-height: 100vh;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .page-content {

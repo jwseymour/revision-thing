@@ -14,29 +14,7 @@ interface Flashcard {
 }
 
 export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }) {
-  const [activeModule, setActiveModule] = useState<string>("All");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  // Build Hierarchy: Part -> Paper -> Module
-  const hierarchy = useMemo(() => {
-    const tree: any = {};
-    initialCards.forEach(c => {
-      const part = c.resources?.part || "Unknown Part";
-      const paper = c.resources?.paper || "Unknown Paper";
-      const mod = c.module;
-      
-      if (!tree[part]) tree[part] = {};
-      if (!tree[part][paper]) tree[part][paper] = new Set();
-      tree[part][paper].add(mod);
-    });
-    return tree;
-  }, [initialCards]);
-
-  const filteredCards = initialCards.filter(
-    (c) => activeModule === "All" || c.module === activeModule
-  );
-
-  const handlePracticeLink = `/dashboard/flashcards/practice/${encodeURIComponent(activeModule)}`;
 
   if (initialCards.length === 0) {
     return (
@@ -48,67 +26,27 @@ export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }
     );
   }
 
-  // Recursive-like rendering for hierarchy
-  const renderTree = () => {
-    return (
-      <div className={styles.treeNode}>
-        <div 
-          className={`${styles.treeLabel} ${activeModule === "All" ? styles.treeLabelActive : ""}`}
-          onClick={() => setActiveModule("All")}
-        >
-          📂 All Modules
-        </div>
-        {Object.entries(hierarchy).map(([part, papers]: any) => (
-          <div key={part} className={styles.treeNode}>
-            <div className={styles.treeLabel}>📚 {part}</div>
-            <div className={styles.treeChildren}>
-              {Object.entries(papers).map(([paper, modules]: any) => (
-                <div key={paper} className={styles.treeNode}>
-                  <div className={styles.treeLabel}>📄 {paper}</div>
-                  <div className={styles.treeChildren}>
-                    {Array.from(modules as Set<string>).map((mod: string) => (
-                      <div 
-                        key={mod}
-                        className={`${styles.treeLabel} ${activeModule === mod ? styles.treeLabelActive : ""}`}
-                        onClick={() => setActiveModule(mod)}
-                      >
-                        📁 {mod}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
+  // Active module is assumed uniformly from the cards since they are pre-filtered
+  const activeModule = initialCards[0]?.module || "Unknown Module";
+  const handlePracticeLink = `/dashboard/flashcards/practice/${encodeURIComponent(activeModule)}`;
 
   return (
     <div className={styles.layout}>
-      <aside className={styles.sidebar}>
-        <h3 style={{ marginBottom: "var(--space-md)", fontSize: "var(--font-size-md)" }}>Hierarchy</h3>
-        {renderTree()}
-      </aside>
-
       <main className={styles.mainPane}>
-        {activeModule !== "All" && (
-          <div className={styles.practiceHeader}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: "var(--font-size-lg)" }}>{activeModule}</h2>
-              <p className="text-muted text-sm" style={{ margin: 0 }}>
-                {filteredCards.length} flashcards inside this module.
-              </p>
-            </div>
-            <a href={handlePracticeLink} className="btn btn-primary">
-              Practice Module
-            </a>
+        <div className={styles.practiceHeader}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: "var(--font-size-lg)" }}>{activeModule}</h2>
+            <p className="text-muted text-sm" style={{ margin: 0 }}>
+              {initialCards.length} flashcards inside this module.
+            </p>
           </div>
-        )}
+          <a href={handlePracticeLink} className="btn btn-primary">
+            Practice Module
+          </a>
+        </div>
 
         <div className={styles.grid}>
-        {filteredCards.map((card) => {
+        {initialCards.map((card) => {
           const isExpanded = expandedId === card.id;
           const schedule = card.item_scheduling_state?.[0];
           

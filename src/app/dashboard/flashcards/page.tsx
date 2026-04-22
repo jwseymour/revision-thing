@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { FlashcardLibrary } from "./FlashcardLibrary";
+import { FlashcardsClientView } from "./FlashcardsClientView";
 
 export const metadata = {
   title: 'Flashcards Library | tripos',
@@ -34,7 +34,7 @@ export default async function FlashcardsPage() {
   // Fetch scheduling states separately since it is a polymorphic relation (no FK)
   const { data: schedules } = await supabase
     .from("item_scheduling_state")
-    .select("item_id, ease_factor, interval_days, next_review_at")
+    .select("item_id, stability, difficulty, reps, scheduled_days, next_review_at")
     .eq("user_id", user.id)
     .eq("item_type", "flashcard");
 
@@ -47,14 +47,5 @@ export default async function FlashcardsPage() {
     };
   });
 
-  return (
-    <div className="page-content" style={{ padding: "var(--space-2xl)", maxWidth: "var(--max-content-width)", margin: "0 auto" }}>
-      <div style={{ marginBottom: "var(--space-2xl)" }}>
-        <h1>Flashcards Library</h1>
-        <p className="text-muted">Browse, search, and organize all your AI-generated flashcards.</p>
-      </div>
-      
-      <FlashcardLibrary initialCards={mergedFlashcards} />
-    </div>
-  );
+  return <FlashcardsClientView flashcards={mergedFlashcards} />;
 }

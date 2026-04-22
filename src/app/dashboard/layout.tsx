@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "./sidebar";
 import styles from "./dashboard.module.css";
+import { ModuleProvider } from "./ModuleContext";
 
 export default async function DashboardLayout({
   children,
@@ -30,12 +31,12 @@ export default async function DashboardLayout({
 
   return (
     <div className={styles["dashboard-layout"]}>
-      <Sidebar userName={displayName} userEmail={email} />
-      <main className={styles["main-content"]}>
-        <div className={styles["page-content"]}>
+      <ModuleProvider>
+        <Sidebar userName={displayName} userEmail={email} />
+        <main className={styles["main-content"]}>
           {children}
-        </div>
-      </main>
+        </main>
+      </ModuleProvider>
     </div>
   );
 }

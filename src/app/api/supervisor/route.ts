@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { extractTextFromPDF } from "@/lib/pdf-processor";
-import { streamText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,103 +17,72 @@ export async function POST(req: NextRequest) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { messages, module: moduleName, sessionId, context } = await req.json();
+    const { module: moduleName, topic, threadId, message } = await req.json();
 
-    if (!moduleName) {
-      return new NextResponse("Missing module", { status: 400 });
+    if (!moduleName || !threadId || !message) {
+      return new NextResponse("Missing required fields", { status: 400 });
     }
 
-    // Attempt to load PDF text for context
-    let pdfContext = "";
-    try {
-      let resourceQuery = supabase.from("resources").select("file_path");
-      
-      if (context?.resourceId) {
-        resourceQuery = resourceQuery.eq("id", context.resourceId);
-      } else {
-        resourceQuery = resourceQuery.eq("module", moduleName).limit(1);
-      }
-      
-      const { data: resource } = await resourceQuery.single();
+    // 1. Fetch the assistant ID for the module
+    const { data: assistantMap, error: assistantError } = await supabase
+      .from("module_assistants")
+      .select("openai_assistant_id")
+      .eq("module", moduleName)
+      .single();
 
-      if (resource?.file_path) {
-        // Extract up to ~30000 characters to keep it well within context limits
-        const fullText = await extractTextFromPDF(resource.file_path);
-        pdfContext = fullText.slice(0, 30000); 
-      }
-    } catch (e) {
-      console.error("Failed to load PDF context for supervisor:", e);
-      // Proceed without pdf context if it fails
+    if (assistantError || !assistantMap?.openai_assistant_id) {
+       console.error("Missing assistant for module:", assistantError);
+       return new NextResponse("Assistant not initialized for this module. Please upload notes first.", { status: 400 });
     }
 
-    // Attempt to load supplemental pedagogical context (flashcards & comments)
-    let pedagogicalContext = "";
-    try {
-      if (context?.resourceId) {
-        const [{ data: userCards }, { data: userAnns }] = await Promise.all([
-          supabase.from("flashcards").select("front, back, card_type").eq("resource_id", context.resourceId),
-          supabase.from("annotations").select("content").eq("resource_id", context.resourceId)
-        ]);
+    const assistantId = assistantMap.openai_assistant_id;
 
-        if (userAnns && userAnns.length > 0) {
-          pedagogicalContext += `<student_comments>\n`;
-          pedagogicalContext += userAnns.map(a => `- ${a.content}`).join("\n");
-          pedagogicalContext += `\n</student_comments>\n\n`;
+    // 2. Add the user's message to the thread
+    await openai.beta.threads.messages.create(threadId, {
+      role: "user",
+      content: message,
+    });
+    
+    // We optionally pass topic in instructions if we want
+    let additionalInstructions = `Focus on the topic: ${topic}. Guide the student Socratically. Use LaTeX math delimiters (e.g. $x^2$ or $$x^2$$).`;
+
+    // 3. Start the run and stream
+    const runStream = openai.beta.threads.runs.stream(threadId, {
+      assistant_id: assistantId,
+      additional_instructions: additionalInstructions
+    });
+
+    // 4. Create a readable stream that yields plaintext chunks
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const event of runStream) {
+            if (event.event === 'thread.message.delta') {
+              const content = event.data.delta.content?.[0];
+              if (content?.type === 'text' && content.text?.value) {
+                // Return plain text chunks
+                controller.enqueue(new TextEncoder().encode(content.text.value));
+              }
+            } else if (event.event === 'thread.run.failed') {
+               console.error("Run failed:", event.data);
+               controller.enqueue(new TextEncoder().encode("\n[Error: The supervisor encountered an issue answering.]"));
+            }
+          }
+        } catch (e) {
+          console.error("Stream reader error:", e);
+        } finally {
+          controller.close();
         }
-
-        if (userCards && userCards.length > 0) {
-          pedagogicalContext += `<student_flashcards>\n`;
-          pedagogicalContext += userCards.map(c => `Q: ${c.front}\nA: ${c.back}`).join("\n---\n");
-          pedagogicalContext += `\n</student_flashcards>\n\n`;
-        }
       }
-    } catch (e) {
-      console.error("Failed to load pedagogical context:", e);
-    }
+    });
 
-    let systemPrompt = `You are a Cambridge Computer Science supervisor conducting a rigorous academic supervision. Your primary job is to profoundly test the student's understanding through Socratic questioning. 
-
-CRITICAL SUPERVISION RULES:
-1. STRICT SOCRATIC METHOD: If a student asks a direct question or is struggling, DO NOT give them the direct answer. Ask a specific, granular, and guiding question that forces them to spot their own contradiction or logic gap. Offer a scaffolded hint ONLY if they are fundamentally stuck.
-2. RIGOROUS CHALLENGE: Challenge weak, vague, or purely memorized explanations. Force the student to articulate the underlying mechanics, derivations, or deeper reasoning precisely. Treat them as a high-achieving undergraduate who needs to be pushed.
-3. CONTEXT BOUND: Base your technical grounding heavily on the provided COURSE NOTES and their specific student context (past mistakes/flashcards). Limit broad external tangents.
-4. FORMATTING AND VERBOSITY: Keep your responses concise (1-2 paragraphs max) to simulate a real-time supervision dialogue. Avoid massive info-dumps. Always use LaTeX for math notation (e.g., $O(n^2)$ or $$\\int x^2 dx$$). Use markdown for inline code (\`void main()\`).
-
-MODULE TOPIC: ${moduleName}
-
-COURSE NOTES / SYLLABUS CONTEXT:
-${pdfContext || "No highly specific notes supplied. Rely strictly on general Cambridge CS tripos syllabus knowledge."}
-
-STUDENT PEDAGOGICAL CONTEXT (Use this to target weaknesses):
-${pedagogicalContext || "The student doesn't have recorded annotations/flashcards for this module yet."}`;
-
-    if (context?.type === 'past_paper') {
-      systemPrompt += `\n\nTHE STUDENT IS CURRENTLY ANSWERING THIS EXAM PAPER. 
-Here is their current draft of their answer:
-"""
-${context.answerText || "[No answer written yet]"}
-"""
-As their supervisor, review their attempt so far. DO NOT just give them the correct answer. Tell them what they are missing, what logic they got wrong, or ask a pointing question that forces them to figure out the next step.`;
-    }
-
-    const result = streamText({
-      model: openai("gpt-4o"),
-      system: systemPrompt,
-      messages,
-      async onFinish({ text }) {
-        if (sessionId) {
-          const generatedId = crypto.randomUUID(); // Safely guarantee an ID
-          const updatedMessages = [...messages, { id: generatedId, role: "assistant", content: text }];
-          await supabase
-            .from("supervisor_sessions")
-            .update({ messages: updatedMessages })
-            .eq("id", sessionId)
-            .eq("user_id", user.id);
-        }
+    return new Response(readableStream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache",
       },
     });
 
-    return result.toDataStreamResponse();
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : "Internal server error";
     console.error("Supervisor API Error:", errorMsg);

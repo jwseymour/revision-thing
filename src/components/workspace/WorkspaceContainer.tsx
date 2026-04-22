@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { PDFViewer } from "./PDFViewer";
 import { SupervisorPanel } from "./SupervisorPanel";
 import { PastPaperPanel } from "./PastPaperPanel";
+import resizeStyles from "@/components/DynamicSplitView.module.css";
 import styles from "./Workspace.module.css";
 import { createClient } from "@/lib/supabase/client";
 
@@ -45,45 +47,40 @@ export function WorkspaceContainer({ resource }: WorkspaceContainerProps) {
 
   return (
     <div className={styles.container}>
-      {/* Left Pane: PDF */}
-      <div className={styles.leftPane}>
-        <PDFViewer 
-          filePath={resource.file_path} 
-          resourceId={resource.id} 
-          flashcards={flashcards}
-          annotations={annotations}
-          onRefresh={fetchWorkspaceData}
-        />
-      </div>
+      <PanelGroup direction="horizontal">
+        {/* Left Pane: PDF */}
+        <Panel className={styles.leftPane}>
+          <PDFViewer 
+            filePath={resource.file_path} 
+            resourceId={resource.id} 
+            flashcards={flashcards}
+            annotations={annotations}
+            onRefresh={fetchWorkspaceData}
+          />
+        </Panel>
 
-      {/* Right Pane: Context & Tools */}
-      <div className={styles.rightPane}>
-        <div className={styles.tabs}>
-          {resource.type === "past_paper" && (
-            <button 
-              className={`${styles.tab} ${activeTab === "past_paper" ? styles.activeTab : ""}`}
-              onClick={() => setActiveTab("past_paper")}
-            >
-              Answers
-            </button>
-          )}
-          <button 
-            className={`${styles.tab} ${activeTab === "supervisor" ? styles.activeTab : ""}`}
-            onClick={() => setActiveTab("supervisor")}
-          >
-            AI Supervisor
-          </button>
-        </div>
+        <PanelResizeHandle className={resizeStyles.resizeHandle}>
+            <div className={resizeStyles.resizeHandleInner} />
+        </PanelResizeHandle>
 
-        <div className={styles.panelContent}>
-          {activeTab === "past_paper" && (
-            <PastPaperPanel resourceId={resource.id} />
-          )}
-          {activeTab === "supervisor" && (
-            <SupervisorPanel resourceId={resource.id} moduleName={resource.module} />
-          )}
-        </div>
-      </div>
+        {/* Right Pane: Context & Tools */}
+        <Panel defaultSize={45} minSize={25} className={styles.rightPane} style={{ width: "100%" }}>
+            {activeTab === "past_paper" && (
+              <PastPaperPanel 
+                 resourceId={resource.id} 
+                 onTabSwitch={setActiveTab}
+              />
+            )}
+            {activeTab === "supervisor" && (
+              <SupervisorPanel 
+                 resourceId={resource.id} 
+                 moduleName={resource.module} 
+                 hasPastPaper={resource.type === "past_paper"}
+                 onTabSwitch={setActiveTab}
+              />
+            )}
+        </Panel>
+      </PanelGroup>
     </div>
   );
 }

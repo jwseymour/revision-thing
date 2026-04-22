@@ -43,13 +43,25 @@ export default async function PracticeModulePage({ params }: PageProps) {
     // For "Practice Mode" per module, it feels best to prioritize due items, but if none are due, show all.
     // Let's sort them so due items appear first.
     
-    validItems = (schedules || []).map(schedule => {
-      const flashcard = flashcards?.find(fc => fc.id === schedule.item_id);
+    validItems = flashcards.map(flashcard => {
+      const schedule = schedules?.find(s => s.item_id === flashcard.id);
       return {
-        schedule: { id: schedule.id, ease_factor: schedule.ease_factor, interval_days: schedule.interval_days, repetition_count: schedule.repetition_count, next_review_at: schedule.next_review_at },
+        schedule: schedule ? { 
+           id: schedule.id, 
+           ease_factor: schedule.ease_factor, 
+           interval_days: schedule.interval_days, 
+           repetition_count: schedule.repetition_count, 
+           next_review_at: schedule.next_review_at 
+        } : {
+           id: "new",
+           ease_factor: 2.5,
+           interval_days: 0,
+           repetition_count: 0,
+           next_review_at: new Date().toISOString()
+        },
         flashcard
       };
-    }).filter(item => item.flashcard);
+    });
 
     // Sort by due date
     validItems.sort((a, b) => new Date(a.schedule.next_review_at).getTime() - new Date(b.schedule.next_review_at).getTime());

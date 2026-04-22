@@ -1,12 +1,16 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import { fsrs, Rating, Card, createEmptyCard } from 'ts-fsrs';
 
-// Map our UI classifications to SM-2 Quality (0-5)
-const QUALITY_MAP: Record<string, number> = {
-  correct_confident: 5,
-  correct_guessed: 4,
-  partial: 2,
-  incorrect: 0,
+// Map our UI classifications to FSRS Ratings
+const RATING_MAP: Record<string, Rating> = {
+  correct_confident: Rating.Easy,
+  correct_guessed: Rating.Good,
+  partial: Rating.Hard,
+  incorrect: Rating.Again,
 };
+
+// Initialize FSRS engine with default parameters
+const fsrsEngine = fsrs({});
 
 export async function updateSchedule(
   supabase: SupabaseClient,
@@ -16,9 +20,10 @@ export async function updateSchedule(
   itemType: string,
   classification: string
 ) {
-  const quality = QUALITY_MAP[classification] ?? 0;
+  const rating = RATING_MAP[classification] ?? Rating.Again;
+  const now = new Date();
 
-  // 1. Get current schedule state for the item
+  // 1. Get current schedule state for the item from Supabase
   const { data: state, error: fetchError } = await supabase
     .from("item_scheduling_state")
     .select("*")
@@ -31,32 +36,32 @@ export async function updateSchedule(
     return;
   }
 
-  let easeFactor = state?.ease_factor ?? 2.5;
-  let intervalDays = state?.interval_days ?? 0;
-  let repetitionCount = state?.repetition_count ?? 0;
-
-  // 2. SM-2 Algorithm
-  if (quality >= 3) {
-    if (repetitionCount === 0) {
-      intervalDays = 1;
-    } else if (repetitionCount === 1) {
-      intervalDays = 6;
-    } else {
-      intervalDays = Math.round(intervalDays * easeFactor);
-    }
-    repetitionCount += 1;
+  // 2. FSRS Algorithm: Construct current Card state
+  let currentCard: Card;
+  
+  if (state) {
+    currentCard = {
+      due: new Date(state.next_review_at),
+      stability: state.stability ?? 0,
+      difficulty: state.difficulty ?? 0,
+      elapsed_days: state.elapsed_days ?? 0,
+      scheduled_days: state.scheduled_days ?? 0,
+      reps: state.reps ?? 0,
+      lapses: state.lapses ?? 0,
+      state: state.state ?? 0,
+      last_review: state.updated_at ? new Date(state.updated_at) : undefined,
+    };
   } else {
-    repetitionCount = 0;
-    intervalDays = 1;
+    // Brand new card
+    currentCard = createEmptyCard(now);
   }
 
-  // Calculate new Ease Factor
-  easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-  easeFactor = Math.max(1.3, easeFactor); // Minimum ease is 1.3
-
-  // Calculate next review date
-  const nextReviewDate = new Date();
-  nextReviewDate.setDate(nextReviewDate.getDate() + intervalDays);
+  // Calculate the next scheduling state using FSRS
+  const schedulingRecord = fsrsEngine.repeat(currentCard, now);
+  
+  // schedulingRecord returns a RecordLog map indexed by Rating (Again=1, Hard=2, Good=3, Easy=4)
+  const nextLogInfo = schedulingRecord[rating];
+  const newCard = nextLogInfo.card;
 
   // 3. Upsert item scheduling state
   const { error: upsertError } = await supabase
@@ -65,11 +70,15 @@ export async function updateSchedule(
       user_id: userId,
       item_id: itemId,
       item_type: itemType,
-      ease_factor: easeFactor,
-      interval_days: intervalDays,
-      repetition_count: repetitionCount,
-      next_review_at: nextReviewDate.toISOString(),
-      updated_at: new Date().toISOString(),
+      stability: newCard.stability,
+      difficulty: newCard.difficulty,
+      elapsed_days: newCard.elapsed_days,
+      scheduled_days: newCard.scheduled_days,
+      reps: newCard.reps,
+      lapses: newCard.lapses,
+      state: newCard.state,
+      next_review_at: newCard.due.toISOString(),
+      updated_at: newCard.last_review?.toISOString() || now.toISOString(),
     }, { onConflict: "user_id,item_id" });
 
   if (upsertError) {
@@ -77,7 +86,7 @@ export async function updateSchedule(
   }
 
   // 4. Update the aggregate module scheduling state (so the UI can still suggest modules)
-  // This uses a simplistic bump forward so it stays tracking roughly when the module needs review
+  // Simplified logic: Bumping module's mastery forward with the item's new scheduling metrics.
   const { data: moduleState } = await supabase
     .from("scheduling_state")
     .select("*")
@@ -85,20 +94,21 @@ export async function updateSchedule(
     .eq("module", moduleName)
     .single();
     
-  // If the module exists and we just studied an item in it, we might want to push its next_review_at
-  // to the minimum next_review_at of all its items, but for simplicity we'll just upsert a default if it doesn't exist.
-  // Actually, calculating the real next review date for a module would require querying all items.
-  // We'll leave it simple for now: upsert if missing, or subtly bump it.
   await supabase
     .from("scheduling_state")
     .upsert({
       user_id: userId,
       module: moduleName,
-      ease_factor: moduleState?.ease_factor ?? 2.5,
-      interval_days: moduleState?.interval_days ?? 0,
-      repetition_count: moduleState?.repetition_count ?? 0,
-      next_review_at: nextReviewDate.toISOString(),
-      updated_at: new Date().toISOString(),
+      // Just keep average module difficulty/stability approximate for sorting
+      stability: ((moduleState?.stability ?? 0) + newCard.stability) / (moduleState ? 2 : 1),
+      difficulty: ((moduleState?.difficulty ?? 0) + newCard.difficulty) / (moduleState ? 2 : 1),
+      elapsed_days: newCard.elapsed_days,
+      scheduled_days: newCard.scheduled_days,
+      reps: (moduleState?.reps ?? 0) + 1,
+      lapses: moduleState?.lapses ?? 0,
+      state: moduleState?.state ?? 0,
+      next_review_at: newCard.due.toISOString(),
+      updated_at: now.toISOString(),
     }, { onConflict: "user_id,module" });
 }
 
@@ -108,11 +118,9 @@ export async function updateSchedule(
 export async function getDueModules(supabase: SupabaseClient, userId: string) {
   const now = new Date().toISOString();
   
-  // Actually, we should probably aggregate from item_scheduling_state 
-  // but to avoid massive query refactors we rely on scheduling_state or mastery_scores.
   const { data, error } = await supabase
     .from("scheduling_state")
-    .select("module, next_review_at, interval_days")
+    .select("module, next_review_at, scheduled_days")
     .eq("user_id", userId)
     .lte("next_review_at", now)
     .order("next_review_at", { ascending: true }); // Most overdue first

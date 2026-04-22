@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./FlashcardGeneratorModal.module.css";
 import { SelectionData } from "./useTextSelection";
 
@@ -15,21 +16,21 @@ interface FlashcardGeneratorModalProps {
 export function FlashcardGeneratorModal({ selectionData, resourceId, moduleName, onClose, onSuccess }: FlashcardGeneratorModalProps) {
   const [type, setType] = useState<"statement" | "qna" | "deep_dive">("qna");
   const [isGenerating, setIsGenerating] = useState(false);
+  const router = useRouter();
 
   async function handleGenerate() {
     if (!selectionData) return;
     setIsGenerating(true);
 
     try {
-      const response = await fetch("/api/ai/flashcard", {
+      const response = await fetch("/api/content/generate-from-highlight", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: selectionData.text,
           type,
-          resourceId,
-          moduleName,
-          sourceRects: { 
+          resource_id: resourceId,
+          source_rects: { 
             pageNumber: selectionData.pageNumber,
             topPercent: selectionData.topPercent,
             heightPercent: selectionData.heightPercent
@@ -41,6 +42,7 @@ export function FlashcardGeneratorModal({ selectionData, resourceId, moduleName,
         throw new Error("Failed to generate flashcard");
       }
 
+      router.refresh(); // Sync flashcard cache immediately
       onSuccess();
     } catch (err) {
       console.error(err);

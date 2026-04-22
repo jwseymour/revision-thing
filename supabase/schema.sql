@@ -107,6 +107,7 @@ CREATE TABLE resources (
   status resource_status DEFAULT 'pending',
   type resource_type DEFAULT 'notes',
   error_message TEXT,
+  openai_file_id TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -246,10 +247,15 @@ CREATE TABLE scheduling_state (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   module TEXT NOT NULL,
-  ease_factor REAL DEFAULT 2.5,
-  interval_days INT DEFAULT 0,
+  stability REAL DEFAULT 0,
+  difficulty REAL DEFAULT 0,
+  elapsed_days INT DEFAULT 0,
+  scheduled_days INT DEFAULT 0,
+  reps INT DEFAULT 0,
+  lapses INT DEFAULT 0,
+  state INT DEFAULT 0,
   next_review_at TIMESTAMPTZ DEFAULT NOW(),
-  repetition_count INT DEFAULT 0,
+
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, module)
 );
@@ -273,10 +279,15 @@ CREATE TABLE item_scheduling_state (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   item_id UUID NOT NULL,
   item_type TEXT NOT NULL CHECK (item_type IN ('flashcard', 'question')),
-  ease_factor REAL DEFAULT 2.5,
-  interval_days INT DEFAULT 0,
+  stability REAL DEFAULT 0,
+  difficulty REAL DEFAULT 0,
+  elapsed_days INT DEFAULT 0,
+  scheduled_days INT DEFAULT 0,
+  reps INT DEFAULT 0,
+  lapses INT DEFAULT 0,
+  state INT DEFAULT 0,
   next_review_at TIMESTAMPTZ DEFAULT NOW(),
-  repetition_count INT DEFAULT 0,
+
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, item_id)
 );
@@ -363,6 +374,7 @@ CREATE TABLE supervisor_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   module TEXT NOT NULL,
+  openai_thread_id TEXT,
   messages JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -424,3 +436,26 @@ CREATE POLICY "Users can manage own past paper answers"
   ON past_paper_answers FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================
+-- 14. MODULE ASSISTANTS TABLE (Phase 4)
+-- ============================================================
+
+CREATE TABLE module_assistants (
+  module TEXT PRIMARY KEY,
+  openai_assistant_id TEXT NOT NULL,
+  openai_vector_store_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Note: This table holds system-wide mapping, so maybe anyone can read it, but only auth can insert.
+ALTER TABLE module_assistants ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read assistants"
+  ON module_assistants FOR SELECT
+  USING (true);
+
+CREATE POLICY "Auth users can insert assistants"
+  ON module_assistants FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL);
+

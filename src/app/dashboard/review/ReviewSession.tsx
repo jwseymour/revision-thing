@@ -75,13 +75,25 @@ export function ReviewSession({ initialItems }: { initialItems: ReviewItem[] }) 
       });
 
       // Update schedule
-      await supabase.from("item_scheduling_state").update({
-        ease_factor,
-        interval_days,
-        repetition_count,
-        next_review_at: next_review_at.toISOString(),
-        updated_at: new Date().toISOString()
-      }).eq("id", schedule.id);
+      if (schedule.id === "new") {
+        await supabase.from("item_scheduling_state").insert({
+          user_id: user.id,
+          item_id: flashcard.id,
+          item_type: "flashcard",
+          ease_factor,
+          interval_days,
+          repetition_count,
+          next_review_at: next_review_at.toISOString()
+        });
+      } else {
+        await supabase.from("item_scheduling_state").update({
+          ease_factor,
+          interval_days,
+          repetition_count,
+          next_review_at: next_review_at.toISOString(),
+          updated_at: new Date().toISOString()
+        }).eq("id", schedule.id);
+      }
     }
   }
 
