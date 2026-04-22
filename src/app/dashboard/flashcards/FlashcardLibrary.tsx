@@ -10,7 +10,7 @@ interface Flashcard {
   module: string;
   card_type: string;
   resources: { part: string; paper: string; module: string };
-  item_scheduling_state: { ease_factor: number; next_review_at: string }[];
+  item_scheduling_state: { stability: number; next_review_at: string }[];
 }
 
 export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }) {
@@ -52,8 +52,8 @@ export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }
           
           let easeColor = "var(--text-tertiary)";
           if (schedule) {
-            if (schedule.ease_factor >= 2.5) easeColor = "var(--status-success)";
-            else if (schedule.ease_factor < 2) easeColor = "var(--status-error)";
+            if (schedule.stability >= 20) easeColor = "var(--status-success)";
+            else if (schedule.stability < 5) easeColor = "var(--status-error)";
             else easeColor = "var(--status-warning)";
           }
 
@@ -65,7 +65,7 @@ export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }
             >
               <div className={styles.cardHeader}>
                 <span className={styles.typeTag}>{card.card_type}</span>
-                <span className={styles.statusDot} style={{ background: easeColor }} title={schedule ? `Ease: ${schedule.ease_factor.toFixed(1)}` : "Unseen"} />
+                <span className={styles.statusDot} style={{ background: easeColor }} title={schedule && schedule.stability != null ? `Stability: ${schedule.stability.toFixed(1)}` : "Unseen"} />
               </div>
               <h3 className={styles.cardFront}>{card.front}</h3>
               

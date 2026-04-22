@@ -5,13 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "@/app/(auth)/actions";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { StudyTimer } from "@/components/StudyTimer";
 import { useActiveModule } from "./ModuleContext";
 import { createClient } from "@/lib/supabase/client";
 import styles from "./dashboard.module.css";
 
 const globalNavItems = [
-  { href: "/dashboard", label: "Overview", icon: "📊" },
   { href: "/dashboard/review", label: "Daily Review", icon: "🗓️" },
+  { href: "/dashboard/analytics", label: "Analytics", icon: "📈" },
   { href: "/dashboard/upload", label: "Admin Upload", icon: "📄" },
 ];
 
@@ -99,6 +100,10 @@ export function Sidebar({ userName, userEmail }: { userName: string; userEmail: 
 
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
           
+          {/* Study Timer */}
+          <StudyTimer />
+          <div style={{ width: "calc(100% - 2rem)", height: "1px", background: "var(--border-subtle)", margin: "0.25rem auto" }} />
+
           {/* Section 1: Global */}
           <nav className={styles["sidebar-nav"]} style={{ paddingBottom: 0 }}>
             <div className={styles["sidebar-section"]}>Global</div>

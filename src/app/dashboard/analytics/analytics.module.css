@@ -1,0 +1,338 @@
+/* ============================================================
+   Analytics Dashboard — Styles
+   ============================================================ */
+
+.analyticsPage {
+  animation: analyticsFadeIn 0.3s ease;
+  padding: var(--space-2xl);
+  max-width: var(--max-content-width);
+  margin: 0 auto;
+}
+
+@keyframes analyticsFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* --- Header --- */
+.header {
+  margin-bottom: var(--space-2xl);
+}
+
+.header h1 {
+  font-size: var(--font-size-2xl);
+  margin-bottom: var(--space-xs);
+}
+
+/* --- Stats Row --- */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-2xl);
+}
+
+.statCard {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+  transition: all var(--transition-fast);
+}
+
+.statCard:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.statIcon {
+  font-size: 1.5rem;
+  display: block;
+  margin-bottom: var(--space-sm);
+}
+
+.statValue {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  color: var(--accent-primary);
+  line-height: 1.2;
+  margin-bottom: var(--space-xs);
+}
+
+.statLabel {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* --- Section --- */
+.section {
+  margin-bottom: var(--space-2xl);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin-bottom: var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* --- Mastery Table --- */
+.masteryTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.masteryTable thead th {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--space-md) var(--space-lg);
+  text-align: left;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.masteryTable tbody td {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--font-size-sm);
+}
+
+.masteryTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.masteryTable tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.masteryTable tbody tr:hover {
+  background: var(--bg-tertiary);
+}
+
+.moduleCell {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.confidenceCell {
+  font-family: var(--font-geist-mono);
+  font-weight: 600;
+}
+
+.trendUp {
+  color: var(--status-success);
+}
+
+.trendDown {
+  color: var(--status-danger);
+}
+
+.trendFlat {
+  color: var(--text-muted);
+}
+
+.miniBar {
+  width: 80px;
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: var(--space-sm);
+}
+
+.miniBarFill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- Heatmap Calendar --- */
+.heatmapContainer {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+}
+
+.heatmapGrid {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 3px;
+}
+
+.heatmapWeek {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.heatmapDay {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  transition: all var(--transition-fast);
+}
+
+.heatmapDay:hover {
+  transform: scale(1.4);
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+.heatmapLegend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  justify-content: flex-end;
+}
+
+.heatmapLegend span {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.heatmapLegendBlock {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* --- Classification Breakdown --- */
+.classificationGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-md);
+}
+
+.classificationCard {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-lg);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.classificationValue {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: var(--space-xs);
+}
+
+.classificationLabel {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.classificationBar {
+  height: 4px;
+  border-radius: var(--radius-full);
+  margin-top: var(--space-sm);
+}
+
+/* --- Overall Retention Bar --- */
+.retentionContainer {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.retentionBar {
+  display: flex;
+  height: 24px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  gap: 2px;
+}
+
+.retentionSegment {
+  transition: flex var(--transition-base);
+  min-width: 2px;
+}
+
+.retentionLabels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-md);
+}
+
+.retentionLabelItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.retentionDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* --- Empty State --- */
+.emptySection {
+  text-align: center;
+  padding: var(--space-2xl);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+  .analyticsPage {
+    padding: var(--space-lg);
+  }
+
+  .statsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .classificationGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .masteryTable {
+    font-size: var(--font-size-xs);
+  }
+
+  .masteryTable thead th,
+  .masteryTable tbody td {
+    padding: var(--space-sm) var(--space-md);
+  }
+}

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ReviewSession } from "@/app/dashboard/review/ReviewSession";
+import { DynamicSplitView } from "@/components/DynamicSplitView";
 import Link from "next/link";
 
 interface PageProps {
@@ -48,15 +49,23 @@ export default async function PracticeModulePage({ params }: PageProps) {
       return {
         schedule: schedule ? { 
            id: schedule.id, 
-           ease_factor: schedule.ease_factor, 
-           interval_days: schedule.interval_days, 
-           repetition_count: schedule.repetition_count, 
+           stability: schedule.stability,
+           difficulty: schedule.difficulty,
+           elapsed_days: schedule.elapsed_days,
+           scheduled_days: schedule.scheduled_days,
+           reps: schedule.reps,
+           lapses: schedule.lapses,
+           state: schedule.state,
            next_review_at: schedule.next_review_at 
         } : {
            id: "new",
-           ease_factor: 2.5,
-           interval_days: 0,
-           repetition_count: 0,
+           stability: 0,
+           difficulty: 0,
+           elapsed_days: 0,
+           scheduled_days: 0,
+           reps: 0,
+           lapses: 0,
+           state: 0,
            next_review_at: new Date().toISOString()
         },
         flashcard
@@ -68,26 +77,32 @@ export default async function PracticeModulePage({ params }: PageProps) {
   }
 
   return (
-    <div className="page-content" style={{ padding: "var(--space-2xl)", maxWidth: "var(--max-content-width)", margin: "0 auto" }}>
-      <div style={{ marginBottom: "var(--space-2xl)" }}>
-        <Link href="/dashboard/flashcards" className="btn btn-ghost btn-sm" style={{ marginBottom: "var(--space-md)", display: "inline-block" }}>
-          ← Back to Library
-        </Link>
-        <h1>Practice: {moduleName}</h1>
-        <p className="text-muted">Master your material with active recall.</p>
-      </div>
+    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
+      <DynamicSplitView moduleName={moduleName}>
+        <div style={{ padding: "var(--space-2xl)", width: "100%", maxWidth: "100%", margin: "0 auto", height: "100%", display: "flex", flexDirection: "column" }}>
+          <div style={{ marginBottom: "var(--space-2xl)", flexShrink: 0 }}>
+            <Link href="/dashboard/flashcards" className="btn btn-ghost btn-sm" style={{ marginBottom: "var(--space-md)", display: "inline-block" }}>
+              ← Back to Library
+            </Link>
+            <h1>Practice: {moduleName}</h1>
+            <p className="text-muted">Master your material with active recall.</p>
+          </div>
 
-      {validItems.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "var(--space-3xl)", background: "var(--bg-secondary)", borderRadius: "var(--radius-lg)" }}>
-          <h2>No flashcards found</h2>
-          <p className="text-muted">There are no flashcards available to practice for this module yet.</p>
-          <Link href="/dashboard/flashcards" className="btn btn-primary" style={{ marginTop: "var(--space-lg)", display: "inline-block" }}>
-            Return to Library
-          </Link>
+          {validItems.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "var(--space-3xl)", background: "var(--bg-secondary)", borderRadius: "var(--radius-lg)" }}>
+              <h2>No flashcards found</h2>
+              <p className="text-muted">There are no flashcards available to practice for this module yet.</p>
+              <Link href="/dashboard/flashcards" className="btn btn-primary" style={{ marginTop: "var(--space-lg)", display: "inline-block" }}>
+                Return to Library
+              </Link>
+            </div>
+          ) : (
+            <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+               <ReviewSession initialItems={validItems} />
+            </div>
+          )}
         </div>
-      ) : (
-        <ReviewSession initialItems={validItems} />
-      )}
+      </DynamicSplitView>
     </div>
   );
 }

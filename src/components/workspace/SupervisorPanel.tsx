@@ -390,7 +390,7 @@ export function SupervisorPanel({ moduleName, explicitSessionId, hasPastPaper, o
            </select>
        </div>
        
-       <div style={{ flexGrow: 1, overflow: 'hidden', padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column' }}>
+       <div style={{ flexGrow: 1, overflow: 'hidden', padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <SupervisorChat key={threadId} moduleName={moduleName} threadId={threadId} />
        </div>
      </div>

@@ -18,6 +18,20 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
+// Suppress known harmless AbortException errors from react-pdf text layer rendering
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+console.error = (...args) => {
+  if (args[0] && typeof args[0] === 'string' && args[0].includes('AbortException')) return;
+  // Also catch Error objects
+  if (args[0] && args[0].name === 'AbortException') return;
+  originalConsoleError.apply(console, args);
+};
+console.warn = (...args) => {
+  if (args[0] && typeof args[0] === 'string' && args[0].includes('AbortException')) return;
+  originalConsoleWarn.apply(console, args);
+};
+
 interface PDFViewerProps {
   filePath: string;
   resourceId: string;
@@ -202,8 +216,8 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
                     const sched = item.item_scheduling_state?.[0];
                     let easeColor = "var(--text-tertiary)";
                     if (sched) {
-                      if (sched.ease_factor >= 2.5) easeColor = "var(--status-success)";
-                      else if (sched.ease_factor < 2) easeColor = "var(--status-error)";
+                      if (sched.stability >= 20) easeColor = "var(--status-success)";
+                      else if (sched.stability < 5) easeColor = "var(--status-error)";
                       else easeColor = "var(--status-warning)";
                     }
                     

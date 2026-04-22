@@ -22,7 +22,7 @@ export function WorkspaceContainer({ resource }: WorkspaceContainerProps) {
   const fetchWorkspaceData = async () => {
     const [{ data: userCards }, { data: schedules }] = await Promise.all([
       supabase.from("flashcards").select('*').eq("resource_id", resource.id),
-      supabase.from("item_scheduling_state").select('item_id, ease_factor, interval_days').eq("item_type", "flashcard")
+      supabase.from("item_scheduling_state").select('item_id, stability, difficulty').eq("item_type", "flashcard")
     ]);
     
     if (userCards) {

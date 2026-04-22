@@ -2,19 +2,31 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { updateSchedule } from "@/lib/scheduling";
 import styles from "./ReviewSession.module.css";
 
 interface ReviewItem {
   schedule: {
     id: string;
-    ease_factor: number;
-    interval_days: number;
-    repetition_count: number;
+    stability: number;
+    difficulty: number;
+    elapsed_days: number;
+    scheduled_days: number;
+    reps: number;
+    lapses: number;
+    state: number;
+    next_review_at: string;
   };
   flashcard: any;
 }
 
-export function ReviewSession({ initialItems }: { initialItems: ReviewItem[] }) {
+interface ReviewSessionProps {
+  initialItems: ReviewItem[];
+  returnUrl?: string;
+  recommendedCount?: number;
+}
+
+export function ReviewSession({ initialItems, returnUrl = "/dashboard", recommendedCount }: ReviewSessionProps) {
   const [items, setItems] = useState<ReviewItem[]>(initialItems);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -25,9 +37,13 @@ export function ReviewSession({ initialItems }: { initialItems: ReviewItem[] }) 
 
   if (!currentItem) {
     return (
-      <div style={{ textAlign: "center", padding: "var(--space-3xl)" }}>
+      <div style={{ textAlign: "center", padding: "var(--space-3xl)", background: "var(--bg-secondary)", borderRadius: "var(--radius-lg)" }}>
+        <span style={{ fontSize: "3rem", display: "block", marginBottom: "var(--space-lg)" }}>🎯</span>
         <h2>Session complete!</h2>
-        <a href="/dashboard" className="btn btn-primary mt-4">Back to Library</a>
+        <p className="text-muted" style={{ marginTop: "var(--space-sm)" }}>You reviewed {items.length} card{items.length !== 1 ? "s" : ""}.</p>
+        <a href={returnUrl} className="btn btn-primary" style={{ marginTop: "var(--space-lg)", display: "inline-block" }}>
+          {returnUrl === "/dashboard/review" ? "Back to Review Overview" : "Back to Library"}
+        </a>
       </div>
     );
   }
@@ -38,25 +54,10 @@ export function ReviewSession({ initialItems }: { initialItems: ReviewItem[] }) 
   const cascades = Array.isArray(flashcard.cascade_content) ? flashcard.cascade_content : [];
 
   async function handleGrade(quality: number) {
-    // SM-2 logic
-    let { ease_factor, interval_days, repetition_count } = schedule;
-
-    if (quality >= 3) {
-      if (repetition_count === 0) interval_days = 1;
-      else if (repetition_count === 1) interval_days = 6;
-      else interval_days = Math.round(interval_days * ease_factor);
-      repetition_count += 1;
-    } else {
-      repetition_count = 0;
-      interval_days = 1;
-    }
-
-    ease_factor = ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-    if (ease_factor < 1.3) ease_factor = 1.3;
-
-    // Next review date
-    const next_review_at = new Date();
-    next_review_at.setDate(next_review_at.getDate() + interval_days);
+    let classification = 'incorrect';
+    if (quality === 3) classification = 'partial';
+    if (quality === 4) classification = 'correct_guessed';
+    if (quality === 5) classification = 'correct_confident';
 
     // Optimistic update
     setCurrentIndex(idx => idx + 1);
@@ -71,29 +72,11 @@ export function ReviewSession({ initialItems }: { initialItems: ReviewItem[] }) 
         user_id: user.id,
         item_id: flashcard.id,
         item_type: 'flashcard',
-        classification: quality >= 3 ? 'correct_confident' : 'incorrect',
+        classification,
       });
 
-      // Update schedule
-      if (schedule.id === "new") {
-        await supabase.from("item_scheduling_state").insert({
-          user_id: user.id,
-          item_id: flashcard.id,
-          item_type: "flashcard",
-          ease_factor,
-          interval_days,
-          repetition_count,
-          next_review_at: next_review_at.toISOString()
-        });
-      } else {
-        await supabase.from("item_scheduling_state").update({
-          ease_factor,
-          interval_days,
-          repetition_count,
-          next_review_at: next_review_at.toISOString(),
-          updated_at: new Date().toISOString()
-        }).eq("id", schedule.id);
-      }
+      // Update schedule via FSRS
+      await updateSchedule(supabase, user.id, flashcard.module, flashcard.id, 'flashcard', classification);
     }
   }
 
@@ -107,6 +90,11 @@ export function ReviewSession({ initialItems }: { initialItems: ReviewItem[] }) 
     <div className={styles.container}>
       <div className={styles.progress}>
         Card {currentIndex + 1} of {items.length}
+        {recommendedCount && recommendedCount < items.length && (
+          <span style={{ marginLeft: "var(--space-sm)", color: currentIndex + 1 > recommendedCount ? "var(--status-warning)" : "var(--text-muted)" }}>
+            · Recommended: {recommendedCount}
+          </span>
+        )}
       </div>
 
       <div className={`${styles.card} ${isFlipped ? styles.flipped : ""}`}>
