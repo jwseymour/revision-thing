@@ -15,6 +15,8 @@ interface FlashcardGeneratorModalProps {
 
 export function FlashcardGeneratorModal({ selectionData, resourceId, moduleName, onClose, onSuccess }: FlashcardGeneratorModalProps) {
   const [type, setType] = useState<"statement" | "qna" | "deep_dive">("qna");
+  const [focus, setFocus] = useState("");
+  const [depth, setDepth] = useState<"basic" | "standard" | "advanced">("standard");
   const [isGenerating, setIsGenerating] = useState(false);
   const router = useRouter();
 
@@ -30,6 +32,8 @@ export function FlashcardGeneratorModal({ selectionData, resourceId, moduleName,
           text: selectionData.text,
           type,
           resource_id: resourceId,
+          focus: focus.trim(),
+          depth,
           source_rects: { 
             pageNumber: selectionData.pageNumber,
             topPercent: selectionData.topPercent,
@@ -110,6 +114,31 @@ export function FlashcardGeneratorModal({ selectionData, resourceId, moduleName,
                 <span className={styles.typeDesc}>Multi-sided conceptual breakdown or algorithm steps.</span>
               </div>
             </label>
+          </div>
+
+          <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Focus & Comments (Optional)</label>
+              <input 
+                type="text" 
+                placeholder="e.g. Focus only on the time complexity mechanism..."
+                value={focus}
+                onChange={(e) => setFocus(e.target.value)}
+                style={{ padding: '0.625rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Depth of Detail</label>
+              <select 
+                value={depth} 
+                onChange={(e) => setDepth(e.target.value as any)}
+                style={{ padding: '0.625rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem', cursor: 'pointer' }}
+              >
+                <option value="basic">Basic (High-level Summary)</option>
+                <option value="standard">Standard (Core Mechanisms)</option>
+                <option value="advanced">Advanced (Pedantic Details & Edge Cases)</option>
+              </select>
+            </div>
           </div>
         </div>
 

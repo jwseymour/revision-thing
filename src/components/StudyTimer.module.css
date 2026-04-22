@@ -32,15 +32,6 @@
   gap: var(--space-sm);
 }
 
-.modeLabel {
-  font-family: var(--font-geist-mono);
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 0 var(--space-xs);
-}
 
 .modeOptions {
   display: flex;

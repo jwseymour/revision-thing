@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { text, type, resource_id, source_rects } = body;
+    const { text, type, resource_id, source_rects, focus, depth } = body;
 
     if (!text || !type || !resource_id) {
       return NextResponse.json(
@@ -65,6 +65,8 @@ export async function POST(req: Request) {
         You are a Cambridge Computer Science Professor creating strict, high-yield flashcards.
         Context: The material belongs to the university module ${resource.module}.
         Task: ${promptInstruction}
+        User Request (Focus Area): ${focus || "None provided. Do a standard extraction."}
+        Target Depth: ${depth || "standard"}
 
         CRITICAL RULES:
         1. ONLY use information present or strongly implied by the provided text. Do not hallucinate external syllabus knowledge.

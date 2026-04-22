@@ -64,7 +64,7 @@ export function WorkspaceContainer({ resource }: WorkspaceContainerProps) {
         </PanelResizeHandle>
 
         {/* Right Pane: Context & Tools */}
-        <Panel defaultSize={45} minSize={25} className={styles.rightPane} style={{ width: "100%" }}>
+        <Panel defaultSize="45" minSize="25" className={styles.rightPane} style={{ width: "100%" }}>
             {activeTab === "past_paper" && (
               <PastPaperPanel 
                  resourceId={resource.id} 

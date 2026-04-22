@@ -14,9 +14,11 @@ interface Flashcard {
 }
 
 export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }) {
+  const [cards, setCards] = useState<Flashcard[]>(initialCards);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  if (initialCards.length === 0) {
+  if (cards.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: "var(--space-3xl)", background: "var(--bg-secondary)", borderRadius: "var(--radius-lg)" }}>
         <h2>No flashcards yet</h2>
@@ -27,8 +29,27 @@ export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }
   }
 
   // Active module is assumed uniformly from the cards since they are pre-filtered
-  const activeModule = initialCards[0]?.module || "Unknown Module";
+  const activeModule = cards[0]?.module || "Unknown Module";
   const handlePracticeLink = `/dashboard/flashcards/practice/${encodeURIComponent(activeModule)}`;
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this flashcard?")) return;
+    
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/content/flashcards/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete flashcard.");
+      
+      setCards(prev => prev.filter(c => c.id !== id));
+      if (expandedId === id) setExpandedId(null);
+    } catch (err) {
+      console.error(err);
+      alert("Error deleting flashcard");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className={styles.layout}>
@@ -37,7 +58,7 @@ export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }
           <div>
             <h2 style={{ margin: 0, fontSize: "var(--font-size-lg)" }}>{activeModule}</h2>
             <p className="text-muted text-sm" style={{ margin: 0 }}>
-              {initialCards.length} flashcards inside this module.
+              {cards.length} flashcards inside this module.
             </p>
           </div>
           <a href={handlePracticeLink} className="btn btn-primary">
@@ -46,7 +67,7 @@ export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }
         </div>
 
         <div className={styles.grid}>
-        {initialCards.map((card) => {
+        {cards.map((card) => {
           const isExpanded = expandedId === card.id;
           const schedule = card.item_scheduling_state?.[0];
           
@@ -72,6 +93,16 @@ export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }
               <div className={styles.cardBack}>
                  <hr className={styles.divider} />
                  {card.back}
+                 <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                   <button 
+                     onClick={(e) => handleDelete(card.id, e)} 
+                     className="btn btn-ghost" 
+                     style={{ color: 'var(--status-error)', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+                     disabled={deletingId === card.id}
+                   >
+                     {deletingId === card.id ? "Deleting..." : "Delete Card"}
+                   </button>
+                 </div>
               </div>
             </div>
           );

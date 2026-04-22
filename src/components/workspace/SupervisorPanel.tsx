@@ -40,8 +40,19 @@ function SupervisorChat({
   // Audio state
   const [isListening, setIsListening] = useState(false);
   const [activeSpeechMsgId, setActiveSpeechMsgId] = useState<string | null>(null);
+  const [autoReadEnabled, setAutoReadEnabled] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isListeningRef = useRef(false);
+  const isMicSuspendedRef = useRef(false);
+  const autoReadRef = useRef(false);
+  const recognitionRef = useRef<any>(null);
+
+  // Sync ref for callback closures
+  useEffect(() => {
+    autoReadRef.current = autoReadEnabled;
+  }, [autoReadEnabled]);
 
   // Load history
   useEffect(() => {
@@ -70,7 +81,12 @@ function SupervisorChat({
     fetchHistory();
     
     return () => {
-      window.speechSynthesis?.cancel(); // stop TTS on unmount/thread switch
+      // stop TTS on unmount/thread switch
+      stopAudio(); 
+      if (recognitionRef.current) {
+         isListeningRef.current = false;
+         recognitionRef.current.stop();
+      }
     };
   }, [threadId, moduleName]);
 
@@ -80,69 +96,170 @@ function SupervisorChat({
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value);
 
-  const toggleMic = () => {
+  const startListening = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("Speech recognition isn't supported in your browser.");
       return;
     }
 
-    if (isListening) {
-       // Cannot directly stop standard without reference, rely on UI. But we handle simple on/off.
-       return; 
-    }
-
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
     
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(prev => (prev + " " + transcript).trim());
-    };
-    recognition.onerror = (e: any) => console.error("Speech reco error:", e);
-    recognition.onend = () => setIsListening(false);
+    let currentFinal = ""; // Track final results locally per continuous session
 
+    recognition.onstart = () => {
+      setIsListening(true);
+      isListeningRef.current = true;
+    };
+    
+    recognition.onresult = (event: any) => {
+      let interim = '';
+      let chunk = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          chunk += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+      
+      currentFinal += chunk;
+      const composite = (currentFinal + " " + interim).replace(/\s+/g, ' ').trim();
+      setInput(composite);
+
+      const lower = composite.toLowerCase();
+      // Check for hotword trigger
+      if (lower.endsWith("send message") || lower.endsWith(" over")) {
+          // Send immediately
+          let clean = composite.replace(/send message$/i, "").replace(/ over$/i, "").trim();
+          setInput("");
+          currentFinal = "";
+          
+          if (clean && !isGenerating) {
+             doSend(clean);
+          }
+      }
+    };
+    
+    recognition.onerror = (e: any) => {
+      if (e.error === 'not-allowed') {
+         isListeningRef.current = false;
+         setIsListening(false);
+      }
+    };
+    
+    recognition.onend = () => {
+       if (isListeningRef.current && !isMicSuspendedRef.current) {
+           // Browser stopped it due to silence, silently restart
+           try { recognition.start(); } catch(e){}
+       } else if (!isListeningRef.current) {
+           setIsListening(false);
+       }
+    };
+
+    recognitionRef.current = recognition;
     recognition.start();
   };
 
-  const speakText = (msgId: string, text: string) => {
-    if (!window.speechSynthesis) {
-        alert("Text-to-speech isn't supported in your browser.");
-        return;
+  const stopListening = () => {
+    isListeningRef.current = false;
+    setIsListening(false);
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
     }
-    
-    window.speechSynthesis.cancel();
+  };
+
+  const toggleMic = () => {
+    if (isListeningRef.current) stopListening();
+    else startListening();
+  };
+
+  const suspendMic = () => {
+    isMicSuspendedRef.current = true;
+    try { recognitionRef.current?.stop(); } catch(e) {}
+  };
+
+  const resumeMic = () => {
+    isMicSuspendedRef.current = false;
+    if (isListeningRef.current) {
+      try { recognitionRef.current?.start(); } catch(e) {}
+    }
+  };
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+    }
+    setActiveSpeechMsgId(null);
+    resumeMic();
+  };
+
+  const speakText = async (msgId: string, text: string) => {
+    stopAudio();
     if (activeSpeechMsgId === msgId) {
-       setActiveSpeechMsgId(null);
+       // Mute toggle if clicked while playing
        return;
     }
     
-    // Strip markdown formatting for better TTS
-    let cleanText = text.replace(/[#*`_]/g, '');
-    cleanText = cleanText.replace(/\$\$.*?\$\$/g, ' math equation '); // crude math stripping
-    
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.onend = () => setActiveSpeechMsgId(null);
     setActiveSpeechMsgId(msgId);
-    window.speechSynthesis.speak(utterance);
+    let cleanText = text.replace(/[#*`_]/g, '');
+    cleanText = cleanText.replace(/\$\$.*?\$\$/g, ' math equation ');
+    
+    try {
+        const res = await fetch("/api/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: cleanText })
+        });
+        
+        if (!res.ok) throw new Error("TTS failed");
+        
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        
+        suspendMic();
+        
+        return new Promise<void>((resolve) => {
+            audio.onended = () => {
+               setActiveSpeechMsgId(null);
+               resumeMic();
+               resolve();
+            };
+            audio.play().catch((e) => {
+               console.error("Audio play failed:", e);
+               setActiveSpeechMsgId(null);
+               resumeMic();
+               resolve();
+            });
+        });
+    } catch (e) {
+        console.error("OpenAI TTS error:", e);
+        setActiveSpeechMsgId(null);
+        resumeMic();
+    }
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isGenerating) return;
+  const doSend = async (userMessage: string) => {
+    if (!userMessage.trim() || isGenerating) return;
 
-    window.speechSynthesis?.cancel();
-    setActiveSpeechMsgId(null);
+    // Temporarily pause mic if it's on, to prevent it from hearing the TTS
+    suspendMic();
+    stopAudio();
 
-    const userMessage = input.trim();
-    setInput("");
     setErrorMsg(null);
     setIsGenerating(true);
 
     const userMsgObj: Message = { id: crypto.randomUUID(), role: "user", content: userMessage };
     setMessages(prev => [...prev, userMsgObj]);
+
+    let accumulatedResponse = "";
+    const assistantMsgId = crypto.randomUUID();
 
     try {
       const response = await fetch("/api/supervisor", {
@@ -167,10 +284,7 @@ function SupervisorChat({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       
-      const assistantMsgId = crypto.randomUUID();
       setMessages(prev => [...prev, { id: assistantMsgId, role: "assistant", content: "" }]);
-
-      let accumulatedResponse = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -188,7 +302,23 @@ function SupervisorChat({
       setErrorMsg(err instanceof Error ? err.message : "Error communicating with server.");
     } finally {
       setIsGenerating(false);
+      
+      // Auto-read response if enabled
+      if (autoReadRef.current && accumulatedResponse.trim().length > 0) {
+        // We fire and wait for it
+        await speakText(assistantMsgId, accumulatedResponse);
+      } else {
+         // Resume mic immediately
+         resumeMic();
+      }
     }
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const text = input;
+    setInput("");
+    doSend(text);
   };
 
   if (isLoading) {
@@ -238,8 +368,29 @@ function SupervisorChat({
           disabled={isGenerating}
           style={{ flexGrow: 1 }}
         />
-        <button type="button" onClick={toggleMic} className="btn btn-secondary" disabled={isGenerating} title="Speech to Text">
-          {isListening ? "🔴" : "🎤"}
+        <button 
+          type="button" 
+          onClick={() => setAutoReadEnabled(!autoReadEnabled)} 
+          className={`btn btn-sm ${autoReadEnabled ? "btn-primary" : "btn-secondary"}`} 
+          title="Auto-Read AI Replies"
+          style={{ padding: '0 8px', fontSize: '1.2rem', background: autoReadEnabled ? 'var(--accent-primary-muted)' : 'var(--bg-tertiary)' }}
+        >
+          {autoReadEnabled ? "🔊" : "🔈"}
+        </button>
+        <button 
+          type="button" 
+          onClick={toggleMic} 
+          className="btn btn-secondary" 
+          disabled={isGenerating} 
+          title="Voice Conversation Mode (Always On)"
+          style={{ position: 'relative' }}
+        >
+          {isListening ? (
+             <>
+               <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, background: 'red', borderRadius: '50%', boxShadow: '0 0 4px red' }} className={styles.pulsingBlob}></span>
+               🎙️
+             </>
+          ) : "🎤"}
         </button>
         <button type="submit" className="btn btn-primary" disabled={isGenerating || !input.trim()}>
           {isGenerating ? "..." : "Send"}
