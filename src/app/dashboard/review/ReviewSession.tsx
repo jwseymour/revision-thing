@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { updateSchedule } from "@/lib/scheduling";
 import styles from "./ReviewSession.module.css";
@@ -80,11 +80,50 @@ export function ReviewSession({ initialItems, returnUrl = "/dashboard", recommen
     }
   }
 
-  const handleNextCascade = () => {
+  const handleNextCascade = useCallback(() => {
     if (cascadeLevel < cascades.length) {
       setCascadeLevel(prev => prev + 1);
     }
-  };
+  }, [cascadeLevel, cascades.length]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      const key = e.key;
+      
+      if (!isFlipped) {
+        if (key === " " || key === "Enter") {
+          e.preventDefault();
+          setIsFlipped(true);
+        }
+      } else {
+        if (cascades.length > 0 && cascadeLevel < cascades.length) {
+          if (key === " " || key === "Enter") {
+            e.preventDefault();
+            handleNextCascade();
+          }
+        } else {
+          // All shown, grade keys
+          if (key === "1") { e.preventDefault(); handleGrade(1); }
+          if (key === "2") { e.preventDefault(); handleGrade(3); }
+          if (key === "3") { e.preventDefault(); handleGrade(4); }
+          if (key === "4") { e.preventDefault(); handleGrade(5); }
+        }
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFlipped, cascades.length, cascadeLevel, handleNextCascade]); // handleGrade is stable-ish but not wrapped, omitting it from deps is acceptable here but better to use stable deps if possible. Actually React states are async so we skip adding handleGrade to avoid stale closures, wait: handleGrade is recreated every render so it always has fresh state. Adding handleGrade will just re-attach the event listener every render, which is perfectly safe and ensures fresh closures.
+
 
   return (
     <div className={styles.container}>

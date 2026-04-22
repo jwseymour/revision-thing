@@ -22,10 +22,14 @@
 
 .userWrapper {
   justify-content: flex-end;
+  padding: 0 var(--space-md);
 }
 
 .aiWrapper {
-  justify-content: flex-start;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .message {
@@ -33,7 +37,7 @@
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
-  line-height: 1.5;
+  line-height: 1.6;
   word-wrap: break-word;
 }
 
@@ -44,10 +48,15 @@
 }
 
 .aiMessage {
-  background: var(--bg-secondary);
+  background: transparent;
   color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  border-bottom-left-radius: 4px;
+  border: none;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+  /* Reset border radius for ai message to prevent conflicts */
+  border-radius: 0;
 }
 
 .loading {

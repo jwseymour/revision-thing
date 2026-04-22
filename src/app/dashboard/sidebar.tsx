@@ -241,6 +241,15 @@ export function Sidebar({ userName, userEmail }: { userName: string; userEmail: 
               <div className={styles["sidebar-user-email"]}>{userEmail}</div>
             </div>
           </div>
+          <button 
+            type="button" 
+            className="btn btn-ghost btn-sm" 
+            style={{ width: "100%", display: "flex", justifyContent: "space-between", marginBottom: "4px" }}
+            onClick={() => window.dispatchEvent(new CustomEvent('toggle-shortcuts-modal'))}
+          >
+            <span>Shortcuts</span>
+            <kbd style={{ fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", padding: "0 4px", borderRadius: "4px", fontSize: "0.8em" }}>⌘ /</kbd>
+          </button>
           <form action={signOut}>
             <button type="submit" className="btn btn-ghost btn-sm" style={{ width: "100%" }}>
               Sign Out

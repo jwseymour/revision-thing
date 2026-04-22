@@ -104,6 +104,22 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
   }, [flashcards, annotations]);
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + E to Generate Flashcard from selection
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "e") {
+        if (selectionData) {
+          e.preventDefault();
+          setModalSelection(selectionData);
+          clearSelection();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectionData, clearSelection]);
+
+  useEffect(() => {
     // Files are uploaded to local `public/resources/...` so `filePath` is accessible via `/${filePath}`
     setFileUrl(`/${filePath}`);
   }, [filePath]);

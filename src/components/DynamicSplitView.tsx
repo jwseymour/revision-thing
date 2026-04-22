@@ -62,6 +62,12 @@ export function DynamicSplitView({
     }
   };
 
+  useEffect(() => {
+    const onGlobalToggle = () => handleToggle();
+    window.addEventListener("toggle-supervisor", onGlobalToggle);
+    return () => window.removeEventListener("toggle-supervisor", onGlobalToggle);
+  }, [showAI]); // Need showAI in dependency to capture the current state properly
+
   const handleLayoutChanged = (layout: { [id: string]: number }) => {
     if (typeof window !== "undefined") {
       localStorage.setItem(storageKeyWidth, JSON.stringify(layout));

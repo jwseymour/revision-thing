@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "./sidebar";
 import styles from "./dashboard.module.css";
 import { ModuleProvider } from "./ModuleContext";
+import { GlobalShortcuts } from "@/components/GlobalShortcuts";
+import { ShortcutsModal } from "@/components/ShortcutsModal";
 
 export default async function DashboardLayout({
   children,
@@ -31,6 +33,8 @@ export default async function DashboardLayout({
 
   return (
     <div className={styles["dashboard-layout"]}>
+      <GlobalShortcuts />
+      <ShortcutsModal />
       <ModuleProvider>
         <Sidebar userName={displayName} userEmail={email} />
         <main className={styles["main-content"]}>

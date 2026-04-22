@@ -3,6 +3,8 @@
 import styles from "./SupervisorPanel.module.css";
 import { useEffect, useRef, useState, FormEvent, ChangeEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface SupervisorPanelProps {
   resourceId?: string;
@@ -335,7 +337,15 @@ function SupervisorChat({
         {messages.map((m, i) => (
           <div key={m.id || `msg-${i}`} className={`${styles.messageWrapper} ${m.role === 'user' ? styles.userWrapper : styles.aiWrapper}`}>
             <div className={`${styles.message} ${m.role === 'user' ? styles.userMessage : styles.aiMessage}`}>
-              {m.content}
+              {m.role === 'assistant' ? (
+                <div className="markdown-body">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {m.content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                m.content
+              )}
             </div>
             {m.role === 'assistant' && (
                <button 

@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     });
     
     // We optionally pass topic in instructions if we want
-    let additionalInstructions = `Focus on the topic: ${topic}. Guide the student Socratically. Use LaTeX math delimiters (e.g. $x^2$ or $$x^2$$).`;
+    let additionalInstructions = `Focus on the topic: ${topic}. Guide the student Socratically but be highly concise and information dense. Cover all necessary content without unnecessary fluff. Use LaTeX math delimiters (e.g. $x^2$ or $$x^2$$).`;
 
     // 3. Start the run and stream
     const runStream = openai.beta.threads.runs.stream(threadId, {
