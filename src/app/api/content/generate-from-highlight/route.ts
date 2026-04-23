@@ -40,52 +40,60 @@ export async function POST(req: Request) {
 
     if (type === "statement") {
       schema = z.object({
-        front: z.string().describe("A factual, single-sided concise summary statement that captures the core insight."),
+        front: z.string().describe("A factual, single-sided summary statement that captures the core insight from the FULL excerpt."),
       });
       promptInstruction = "Distill the provided excerpt into a single, high-yield factual statement. Do not use blanks or questions; just provide the core insight.";
     } else if (type === "deep_dive") {
       schema = z.object({
-        front: z.string().describe("The conceptual prompt or algorithm name (e.g., 'Describe the steps of Merge Sort')."),
-        cascade_content: z.array(z.string()).describe("A sequential, logic-oriented array of steps, points, or arguments explaining the concept layer by layer. Maximum 8 items."),
+        front: z.string().describe("The conceptual prompt or topic name (e.g., 'Describe the steps of Merge Sort' or 'List the properties of X')."),
+        cascade_content: z.array(z.string()).describe("A sequential array of steps, points, or properties drawn exhaustively from the ENTIRE source excerpt. Include every distinct item — do not truncate or cap the list."),
       });
-      promptInstruction = "Break the provided excerpt down into a clear, sequential multi-step logical sequence. This will be used in a 'cascade' flashcard where the user reveals one mechanism at a time.";
+      promptInstruction = "Break the provided excerpt down into a clear, sequential logical sequence covering every item. This will be used in a 'cascade' flashcard where the user reveals one mechanism at a time. If the source is a list of properties, every property must appear as its own entry.";
     } else { // qna
       schema = z.object({
-        front: z.string().describe("A direct, unambiguous question targeting the core concept of the excerpt."),
-        back: z.string().describe("A concise but comprehensive answer, using markdown for formatting where absolutely necessary."),
+        front: z.string().describe("A direct, unambiguous question targeting the core concept of the FULL excerpt."),
+        back: z.string().describe("A comprehensive answer that covers ALL items, properties, or steps present in the full excerpt. Use a markdown list if the answer contains multiple items. Do not omit any items."),
       });
-      promptInstruction = "Create a standard Question/Answer flashcard targeting the primary knowledge/mechanism described inside the excerpt.";
+      promptInstruction = "Create a Question/Answer flashcard that comprehensively covers the primary knowledge described in the FULL excerpt. If the excerpt contains a list, the answer must enumerate every item.";
     }
 
     let depthInstruction = "";
     if (depth === "basic") {
-      depthInstruction = "Keep explanations extremely simple, high-level, and brief. Omit edge cases, granular implementation details, and pedantry.";
+      depthInstruction = "Keep explanations simple and high-level. Omit edge cases and granular implementation details. Still include ALL items in any lists.";
     } else if (depth === "advanced") {
-      depthInstruction = "Include deep technical specificity, edge cases, underlying mechanics, and pedantic mathematical/logical rigor.";
+      depthInstruction = "Include deep technical specificity, edge cases, underlying mechanics, and pedantic mathematical/logical rigor for every item.";
     } else {
-      depthInstruction = "Maintain a standard level of academic rigor—focus on core mechanisms without getting lost in minutiae.";
+      depthInstruction = "Maintain a standard level of academic rigor — focus on core mechanisms. Still include ALL items in any lists without truncation.";
     }
+
+    // Build the system message: role + all rules
+    const systemPrompt = `You are a strict, uncompromising Cambridge Computer Science Professor creating high-yield revision flashcards for module: ${resource.module}.
+
+ABSOLUTE RULES — you MUST obey ALL of these without exception:
+
+RULE 1 — EXHAUSTIVE EXTRACTION (most important): The source excerpt may be long or span multiple pages. You MUST process the ENTIRE excerpt from the first word to the last word. If the excerpt contains a list of N properties, steps, or items, your output MUST include all N of them. Never truncate, stop early, or summarise away list items. Treat the source text as a contract — every distinct piece of information must appear in your output.
+
+RULE 2 — DEPTH: ${depthInstruction} Strictly enforce this for every item in your output.
+
+RULE 3 — USER FOCUS OVERRIDE: ${focus
+      ? `The user has given the following specific instruction: "${focus}". You MUST honour this exactly. It overrides your default extraction strategy — reinterpret the task through this lens while still covering all relevant items.`
+      : "No specific focus provided. Perform a comprehensive, balanced extraction."
+    }
+
+RULE 4 — SOURCE FIDELITY: Only use information present or strongly implied by the provided excerpt. Do not hallucinate external knowledge.
+
+RULE 5 — DENSITY: Outputs must be dense and technically precise. Use markdown lists or code blocks where appropriate.`;
 
     const { object } = await generateObject({
       model: openai("gpt-4o"),
       schema,
-      prompt: `
-        You are a Cambridge Computer Science Professor creating strict, high-yield flashcards.
-        Context: The material belongs to the university module ${resource.module}.
-        Task: ${promptInstruction}
-        User Request (Focus Area): ${focus || "None provided. Do a standard extraction."}
-        Target Depth: ${depthInstruction}
+      system: systemPrompt,
+      prompt: `Task: ${promptInstruction}
 
-        CRITICAL RULES:
-        1. STRICLY ENFORCE TARGET DEPTH: ${depthInstruction}
-        2. USER FOCUS OVERRIDE: ${focus ? `The user provided specific instructions ("${focus}"). You MUST fulfill this request. If they ask to focus on a particular property, ignore the rest. If they give formatting instructions, follow them.` : "No specific focus provided."}
-        3. EXHAUSTIVE EXTRACTION: If the source excerpt contains a list, sequence, or multiple properties, you MUST extract ALL of them across the entire text. Do not summarize or heavily truncate lists. Include properties from the beginning to the end of the text.
-        4. ONLY use information present or strongly implied by the provided text. Do not hallucinate external syllabus knowledge.
-        5. Keep outputs dense and unambiguous. Use standard markdown for any inline code or lists.
-
-        Source Excerpt (Use ALL parts of this text):
-        """${text}"""
-      `,
+Source Excerpt — process this in FULL, from beginning to end:
+"""
+${text}
+"""`,
     });
 
     // Save to database

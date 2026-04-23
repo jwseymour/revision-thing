@@ -142,22 +142,22 @@ export function ReviewSession({ initialItems, returnUrl = "/dashboard", recommen
         )}
       </div>
 
-      <div className={`${styles.card} ${isFlipped ? styles.flipped : ""}`}>
-        <div className={styles.cardInner}>
+      <div className={styles.card}>
+        {!isFlipped ? (
           <div className={styles.cardFront}>
             <span className={styles.moduleTag}>{flashcard.module}</span>
-            <div className="markdown-body" style={{ marginTop: "var(--space-md)", fontSize: "1.2rem", fontWeight: "bold" }}>
+            <div className="markdown-body" style={{ marginTop: "var(--space-md)", fontSize: "1.2rem", fontWeight: "bold", flex: 1 }}>
               <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(flashcard.front)}</ReactMarkdown>
             </div>
             {flashcard.card_type === "statement" && <p className="text-muted text-sm mt-4">(Core Statement Insight)</p>}
             {flashcard.card_type === "deep_dive" && <p className="text-muted text-sm mt-4">(Deep Conceptual Recall)</p>}
-            
+
             {flashcard.card_type !== "statement" ? (
-              <button className="btn btn-primary" style={{ marginTop: "auto" }} onClick={() => setIsFlipped(true)}>
+              <button className="btn btn-primary" style={{ marginTop: "var(--space-lg)", flexShrink: 0 }} onClick={() => setIsFlipped(true)}>
                 Show Answer
               </button>
             ) : (
-              <div className={styles.gradingControls} style={{ marginTop: "auto", borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-md)" }}>
+              <div className={styles.gradingControls}>
                 <button className={`btn btn-sm ${styles.gradeBtn} ${styles.again}`} onClick={() => handleGrade(1)}>Again (1m)</button>
                 <button className={`btn btn-sm ${styles.gradeBtn} ${styles.hard}`} onClick={() => handleGrade(3)}>Hard</button>
                 <button className={`btn btn-sm ${styles.gradeBtn} ${styles.good}`} onClick={() => handleGrade(4)}>Good</button>
@@ -165,52 +165,43 @@ export function ReviewSession({ initialItems, returnUrl = "/dashboard", recommen
               </div>
             )}
           </div>
-
+        ) : (
           <div className={styles.cardBack}>
-             <div className={styles.backContent}>
-               <div className={`${styles.answerText} markdown-body`}>
-                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(flashcard.back)}</ReactMarkdown>
-               </div>
-               
-               {cascades.length > 0 && (
-                 <div className={styles.cascadeSection}>
-                   <div style={{ height: "1px", background: "var(--border-subtle)", margin: "var(--space-md) 0" }} />
-                   {cascades.slice(0, cascadeLevel).map((c: string, idx: number) => (
-                      <div key={idx} className={`${styles.cascadeItem} markdown-body`}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(c)}</ReactMarkdown>
-                      </div>
-                   ))}
-                   
-                   {cascadeLevel < cascades.length ? (
-                     <button className="btn btn-secondary btn-sm" onClick={handleNextCascade}>
-                       Reveal Next Step
-                     </button>
-                   ) : (
-                      <p className="text-sm" style={{ color: "var(--status-success)" }}>All conceptual steps revealed.</p>
-                   )}
-                 </div>
-               )}
-             </div>
-
-             {/* Grading Buttons only shown if not deep dive OR if all cascades are shown */}
-             {(!cascades.length || cascadeLevel >= cascades.length) && (
-              <div className={styles.gradingControls}>
-                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.again}`} onClick={() => handleGrade(1)}>
-                  Again (1m)
-                </button>
-                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.hard}`} onClick={() => handleGrade(3)}>
-                  Hard
-                </button>
-                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.good}`} onClick={() => handleGrade(4)}>
-                  Good
-                </button>
-                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.easy}`} onClick={() => handleGrade(5)}>
-                  Easy
-                </button>
+            <div className={styles.backContent}>
+              <div className={`${styles.answerText} markdown-body`}>
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(flashcard.back)}</ReactMarkdown>
               </div>
-             )}
+
+              {cascades.length > 0 && (
+                <div className={styles.cascadeSection}>
+                  <div style={{ height: "1px", background: "var(--border-subtle)", margin: "var(--space-md) 0" }} />
+                  {cascades.slice(0, cascadeLevel).map((c: string, idx: number) => (
+                    <div key={idx} className={`${styles.cascadeItem} markdown-body`}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(c)}</ReactMarkdown>
+                    </div>
+                  ))}
+
+                  {cascadeLevel < cascades.length ? (
+                    <button className="btn btn-secondary btn-sm" onClick={handleNextCascade}>
+                      Reveal Next Step
+                    </button>
+                  ) : (
+                    <p className="text-sm" style={{ color: "var(--status-success)" }}>All conceptual steps revealed.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {(!cascades.length || cascadeLevel >= cascades.length) && (
+              <div className={styles.gradingControls}>
+                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.again}`} onClick={() => handleGrade(1)}>Again (1m)</button>
+                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.hard}`} onClick={() => handleGrade(3)}>Hard</button>
+                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.good}`} onClick={() => handleGrade(4)}>Good</button>
+                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.easy}`} onClick={() => handleGrade(5)}>Easy</button>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

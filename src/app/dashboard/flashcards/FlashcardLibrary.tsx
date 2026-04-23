@@ -99,20 +99,22 @@ export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }
               </div>
               
               <div className={styles.cardBack}>
-                 <hr className={styles.divider} />
-                 <div className="markdown-body">
-                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(card.back)}</ReactMarkdown>
-                 </div>
-                 <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-                   <button 
-                     onClick={(e) => handleDelete(card.id, e)} 
-                     className="btn btn-ghost" 
-                     style={{ color: 'var(--status-error)', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
-                     disabled={deletingId === card.id}
-                   >
-                     {deletingId === card.id ? "Deleting..." : "Delete Card"}
-                   </button>
-                 </div>
+                <div className={styles.cardBackScroller}>
+                  <hr className={styles.divider} />
+                  <div className="markdown-body">
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(card.back)}</ReactMarkdown>
+                  </div>
+                  <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button 
+                      onClick={(e) => handleDelete(card.id, e)} 
+                      className="btn btn-ghost" 
+                      style={{ color: 'var(--status-error)', padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+                      disabled={deletingId === card.id}
+                    >
+                      {deletingId === card.id ? "Deleting..." : "Delete Card"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           );

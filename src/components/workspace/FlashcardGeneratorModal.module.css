@@ -17,10 +17,12 @@
   border-radius: var(--radius-lg);
   width: 90%;
   max-width: 500px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
+  /* Cap height so modal never exceeds viewport; inner .content scrolls */
+  max-height: min(90dvh, 700px);
   display: flex;
   flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -67,6 +69,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+  /* Scroll if form options overflow — header and footer stay pinned */
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .sourceText {

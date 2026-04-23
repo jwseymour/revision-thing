@@ -175,8 +175,18 @@
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
   width: 90%;
-  max-width: 500px;
+  max-width: 680px;
+  /* Cap height and scroll so tall cards never overflow the viewport */
+  max-height: min(85dvh, 760px);
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.content {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .header {
@@ -186,6 +196,7 @@
   margin-bottom: var(--space-md);
   border-bottom: 1px solid var(--border-subtle);
   padding-bottom: var(--space-sm);
+  flex-shrink: 0;
 }
 
 .header h3 {

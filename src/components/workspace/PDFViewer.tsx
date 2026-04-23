@@ -288,13 +288,14 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(activeViewCard.front)}</ReactMarkdown>
                </div>
                <hr style={{ border: "none", borderTop: "1px solid var(--border-default)", margin: "var(--space-md) 0" }} />
-               <div className="markdown-body" style={{ color: "var(--text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+               <div className="markdown-body" style={{ color: "var(--text-secondary)", lineHeight: 1.6 }}>
                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(activeViewCard.back)}</ReactMarkdown>
                </div>
             </div>
           </div>
         </div>
       )}
+
 
       {activeViewAnnotation && (
         <ViewCommentModal

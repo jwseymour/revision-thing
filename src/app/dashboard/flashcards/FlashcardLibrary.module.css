@@ -22,7 +22,8 @@
   flex-direction: column;
   box-shadow: 0 4px 6px rgba(0,0,0,0.02);
   position: relative;
-  overflow: hidden;
+  /* Let inner content define the card height — no clipping */
+  overflow: visible;
 }
 
 .card:hover {
@@ -61,12 +62,17 @@
   font-weight: 500;
   line-height: 1.4;
   margin: 0;
+  /* Always show the full question — no clipping */
 }
 
 .cardBack {
   max-height: 0;
   opacity: 0;
-  transition: all var(--transition-base);
+  /* Transition only animatable properties — never include overflow */
+  transition:
+    max-height var(--transition-base),
+    opacity var(--transition-base),
+    margin var(--transition-base);
   overflow: hidden;
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
@@ -74,9 +80,18 @@
 }
 
 .expanded .cardBack {
-  max-height: 500px;
+  /* Large enough to always clear the inner scroller's max-height */
+  max-height: 600px;
   opacity: 1;
   margin-top: var(--space-md);
+}
+
+/* Inner scroller: this is the only element that ever gets overflow-y:auto.
+   It is not involved in the height animation, so overflow only triggers
+   when the real content genuinely exceeds its cap. */
+.cardBackScroller {
+  max-height: min(400px, 52vh);
+  overflow-y: auto;
 }
 
 .divider {
