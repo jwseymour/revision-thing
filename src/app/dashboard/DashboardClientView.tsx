@@ -3,6 +3,8 @@
 import { useActiveModule } from "./ModuleContext";
 import { ResourceCard } from "@/components/ResourceCard";
 import styles from "./page.module.css";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface DashboardClientViewProps {
   displayName: string;
@@ -11,6 +13,33 @@ interface DashboardClientViewProps {
 
 export function DashboardClientView({ displayName, resources }: DashboardClientViewProps) {
   const { activeModule } = useActiveModule();
+  const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("library") === "true") {
+         localStorage.removeItem("last_active_resource");
+         router.replace("/dashboard");
+         return;
+      }
+
+      const lastId = localStorage.getItem("last_active_resource");
+      if (lastId) {
+        setIsRedirecting(true);
+        router.push(`/dashboard/workspace/${lastId}`);
+      }
+    }
+  }, [router]);
+
+  if (isRedirecting) {
+    return (
+      <div style={{ padding: "var(--space-2xl)", textAlign: "center", color: "var(--text-muted)" }}>
+        Resuming last active resource...
+      </div>
+    );
+  }
 
   // Filter resources based on active module. If none, show all (or global overview)
   const filteredResources = activeModule 

@@ -18,6 +18,8 @@ const SHORTCUT_GROUPS = [
     title: "Active Reading",
     shortcuts: [
       { desc: "Generate Flashcard (from selection)", keys: ["⌘/Ctrl", "E"] },
+      { desc: "Add Comment (from selection)", keys: ["⌘/Ctrl", "M"] },
+      { desc: "Confirm Flashcard Generation", keys: ["⌘/Ctrl", "Enter"] },
       { desc: "Toggle AI Supervisor Panel", keys: ["⌘/Ctrl", "."] },
     ],
   },

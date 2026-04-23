@@ -18,6 +18,41 @@
   margin: 0 auto;
 }
 
+.zoomControls {
+  position: fixed;
+  bottom: 24px;
+  right: 32px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--bg-primary);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  z-index: 100;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.zoomControls button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.zoomControls button:hover {
+  background: var(--bg-tertiary);
+}
+
 .pageWrapper {
   position: relative;
   overflow: visible; /* Need overflow visible for the gutter markers */
@@ -81,8 +116,8 @@
 
 .marginaliaTrack {
   position: relative;
-  width: 300px;
   flex-shrink: 0;
+
   height: 100%; /* Spans the full height of its adjacent Page */
   pointer-events: none; /* Let non-card areas be clicked through */
 }
@@ -100,13 +135,15 @@
   font-size: var(--font-size-sm);
   color: var(--text-primary);
   line-height: 1.5;
+  transform: scale(var(--pdf-zoom, 1));
+  transform-origin: top left;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .marginaliaCard:hover {
-  transform: translateX(-4px);
+  transform: scale(var(--pdf-zoom, 1)) translateX(-4px) !important;
   box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-  z-index: 50;
+  z-index: 50 !important;
 }
 
 .marginaliaHeader {

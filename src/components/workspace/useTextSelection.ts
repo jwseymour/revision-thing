@@ -24,48 +24,75 @@ export function useTextSelection(containerRef: React.RefObject<HTMLElement | nul
         return;
       }
 
-      // Ensure selection is within the PDF text layer
+      // Ensure selection is within the target container
       if (!containerRef.current.contains(selection.anchorNode)) {
         setSelectionData(null);
         return;
       }
 
-      const text = selection.toString().trim();
+      const range = selection.getRangeAt(0);
+      const frag = range.cloneContents();
+      
+      // Use cloneContents() as it's more reliable for cross-container block selections than toString()
+      let text = frag.textContent || selection.toString();
+      text = text.replace(/\n\s*\n/g, '\n').trim();
+
       if (!text) {
         setSelectionData(null);
         return;
       }
 
-      const range = selection.getRangeAt(0);
       const rects = Array.from(range.getClientRects());
-
-      const pageElement = selection.anchorNode?.parentElement?.closest('.react-pdf__Page') as HTMLElement;
-      if (!pageElement) {
+      if (rects.length === 0) {
         setSelectionData(null);
         return;
       }
-      
-      const pageRect = pageElement.getBoundingClientRect();
-      let pageNumber = parseInt(pageElement.dataset.pageNumber || "1", 10);
-      if (isNaN(pageNumber)) pageNumber = 1;
 
-      // Find the absolute min/max Y coordinates from all rects in the selection
-      const minTop = Math.min(...rects.map(r => r.top));
-      const maxBottom = Math.max(...rects.map(r => r.bottom));
-      
-      const absoluteTop = minTop - pageRect.top;
-      const absoluteHeight = maxBottom - minTop;
+      // If the user drags from empty margin space, the browser bounds start at the margin wrappers,
+      // creating massive empty rectangles located physically at the top of the page.
+      // We filter linearly through document order to find the first rectangle shaped like a text line!
+      const firstTextRect = rects.find(r => r.height > 0 && r.height < 80);
+      if (!firstTextRect) {
+        setSelectionData(null);
+        return;
+      }
 
-      const topPercent = (absoluteTop / pageRect.height) * 100;
-      const heightPercent = (absoluteHeight / pageRect.height) * 100;
+      let startNode = range.startContainer;
+      let startElement = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode as HTMLElement;
+      let pageElement = startElement?.closest('.react-pdf__Page') as HTMLElement;
+
+      if (!pageElement) {
+        pageElement = selection.anchorNode?.parentElement?.closest('.react-pdf__Page') as HTMLElement;
+      }
+
+      let pageNumber = 1;
+      let topPercent = 0;
+      let heightPercent = 0;
+
+      if (pageElement) {
+        const pageRect = pageElement.getBoundingClientRect();
+        pageNumber = parseInt(pageElement.dataset.pageNumber || "1", 10);
+        if (isNaN(pageNumber)) pageNumber = 1;
+
+        const absoluteTop = firstTextRect.top - pageRect.top;
+
+        // Ensure we don't wildly miscalculate height if selection jumps pages
+        const validRects = rects.filter(r => r.height > 0 && r.height < 80);
+        const lastTextRect = validRects[validRects.length - 1];
+        
+        const absoluteHeight = Math.max(0, lastTextRect.bottom - firstTextRect.top);
+
+        topPercent = (absoluteTop / pageRect.height) * 100;
+        heightPercent = (absoluteHeight / pageRect.height) * 100;
+      }
 
       setSelectionData({
         text,
         pageNumber,
         topPercent,
         heightPercent,
-        viewportTop: rects[0].top,
-        viewportLeft: rects[0].left + (rects[0].width / 2)
+        viewportTop: firstTextRect.top,
+        viewportLeft: firstTextRect.left + (firstTextRect.width / 2)
       });
     };
 

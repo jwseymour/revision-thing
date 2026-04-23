@@ -8,6 +8,12 @@ import { FloatingToolbar } from "./FloatingToolbar";
 import { FlashcardGeneratorModal } from "./FlashcardGeneratorModal";
 import { CommentModal } from "./CommentModal";
 import { ViewCommentModal } from "./ViewCommentModal";
+import { preprocessLaTeX } from "@/lib/math-utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
 import styles from "./PDFViewer.module.css";
@@ -42,9 +48,11 @@ interface PDFViewerProps {
 
 export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRefresh }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
+  const [zoom, setZoom] = useState<number>(1);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isRestoringScroll = useRef(true);
   const supabase = createClient();
   
   const { selectionData, clearSelection } = useTextSelection(containerRef);
@@ -54,13 +62,33 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
   // States for viewing items
   const [activeViewCard, setActiveViewCard] = useState<any | null>(null);
   const [activeViewAnnotation, setActiveViewAnnotation] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteFlashcard = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this flashcard?")) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/content/flashcards/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setActiveViewCard(null);
+        onRefresh();
+      } else {
+        alert("Failed to delete flashcard");
+      }
+    } catch (e) {
+      alert("Error deleting flashcard");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Group and Layout items per-page to resolve collisions
   const trackItemsByPage = useMemo(() => {
     const itemsMap = new Map<number, any[]>();
     
     // Page height is roughly standardized in absolute scale if we use 800px width.
-    // Assuming ~1000px height. A marginalia card is ~100px = ~10% height.
+    // Page height is roughly standardized in absolute scale if we use 800px width.
+    // Assuming ~1100px height. A marginalia card is ~80px = ~7% height.
     const gapPercent = 10; 
 
     const processItem = (item: any, type: 'flashcard' | 'annotation') => {
@@ -113,6 +141,15 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
           clearSelection();
         }
       }
+      
+      // Cmd/Ctrl + M to Add Comment from selection
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "m") {
+        if (selectionData) {
+          e.preventDefault();
+          setCommentSelection(selectionData);
+          clearSelection();
+        }
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -124,8 +161,53 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
     setFileUrl(`/${filePath}`);
   }, [filePath]);
 
+  useEffect(() => {
+    if (!containerRef.current || !numPages) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isRestoringScroll.current) return; // Prevent overwriting during initial mount restoration
+
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const pageNum = entry.target.getAttribute('data-page-number');
+            if (pageNum) {
+              localStorage.setItem(`pdf_page_${resourceId}`, pageNum);
+            }
+          }
+        });
+      },
+      { threshold: 0.2 } // Trigger if 20% of page is visible
+    );
+
+    // Wait slightly for DOM to settle
+    setTimeout(() => {
+       const wrappers = containerRef.current?.querySelectorAll(`[data-page-number]`);
+       wrappers?.forEach(w => observer.observe(w));
+    }, 100);
+
+    return () => observer.disconnect();
+  }, [numPages, zoom, resourceId]);
+
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
+    
+    // Resume scroll after rendering
+    setTimeout(() => {
+      const lastPage = localStorage.getItem(`pdf_page_${resourceId}`);
+      if (lastPage && containerRef.current) {
+        const target = containerRef.current.querySelector(`[data-page-number="${lastPage}"]`);
+        if (target) {
+          target.scrollIntoView({ behavior: 'auto', block: 'start' });
+        }
+      }
+      
+      // Allow observer to state-track again after the scroll has settled
+      setTimeout(() => {
+         isRestoringScroll.current = false;
+      }, 500);
+      
+    }, 500);
   }
 
   // Optimize page rendering options
@@ -138,6 +220,12 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
 
   return (
     <div className={styles.viewerContainer} ref={containerRef}>
+      <div className={styles.zoomControls}>
+        <button onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}>−</button>
+        <span style={{ minWidth: "40px", textAlign: "center" }}>{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom(z => Math.min(2.5, z + 0.1))}>+</button>
+      </div>
+
       {error && <div className={styles.error}>{error}</div>}
       
       {!fileUrl && !error && loadingElement}
@@ -184,12 +272,25 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
           <div className={styles.viewModal} onClick={e => e.stopPropagation()}>
             <div className={styles.header}>
               <h3>Flashcard ({activeViewCard.card_type})</h3>
-              <button className={styles.closeBtn} onClick={() => setActiveViewCard(null)}>✕</button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={() => handleDeleteFlashcard(activeViewCard.id)} 
+                  disabled={isDeleting}
+                  style={{ background: 'none', border: '1px solid var(--status-error)', color: 'var(--status-error)', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}
+                >
+                  {isDeleting ? '...' : 'Delete'}
+                </button>
+                <button className={styles.closeBtn} onClick={() => setActiveViewCard(null)}>✕</button>
+              </div>
             </div>
             <div className={styles.content}>
-               <h3 style={{ marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>{activeViewCard.front}</h3>
+               <div className="markdown-body" style={{ marginBottom: "var(--space-md)", color: "var(--text-primary)", fontSize: "1.1rem", fontWeight: "bold" }}>
+                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(activeViewCard.front)}</ReactMarkdown>
+               </div>
                <hr style={{ border: "none", borderTop: "1px solid var(--border-default)", margin: "var(--space-md) 0" }} />
-               <div style={{ color: "var(--text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{activeViewCard.back}</div>
+               <div className="markdown-body" style={{ color: "var(--text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(activeViewCard.back)}</ReactMarkdown>
+               </div>
             </div>
           </div>
         </div>
@@ -215,18 +316,18 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
         >
           {Array.from(new Array(numPages || 0), (el, index) => (
             <div key={`page_${index + 1}`} style={{ display: 'flex', gap: '32px', position: 'relative', alignItems: 'stretch' }}>
-              <div className={styles.pageWrapper}>
+              <div className={styles.pageWrapper} data-page-number={index + 1}>
                 <Page
                   pageNumber={index + 1}
                   renderTextLayer={true}
                   renderAnnotationLayer={false}
                   className={styles.page}
-                  width={800} // Set a fixed width for consistent rendering, or make it responsive
+                  width={800 * zoom} // Scale according to zoom
                 />
               </div>
 
               {/* Marginalia Track natively bound to the page height */}
-              <div className={styles.marginaliaTrack}>
+              <div className={styles.marginaliaTrack} style={{ width: `${300 * zoom}px` }}>
                 {(trackItemsByPage.get(index + 1) || []).map(({ item, type, actualTopPercent }, i) => {
                   if (type === 'flashcard') {
                     const sched = item.item_scheduling_state?.[0];
@@ -241,13 +342,20 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
                       <div 
                         key={`fc-${item.id}`}
                         className={styles.marginaliaCard}
-                        style={{ top: `${actualTopPercent}%`, borderLeftColor: easeColor, cursor: "pointer" }}
+                        style={{ 
+                          top: `${actualTopPercent}%`, 
+                          borderLeftColor: easeColor, 
+                          cursor: "pointer",
+                          "--pdf-zoom": zoom,
+                          width: '300px',
+                          marginTop: '-16px'
+                        } as React.CSSProperties}
                         onClick={() => setActiveViewCard(item)}
                       >
                         <div className={styles.marginaliaHeader}>
                           <span>🗂️ Flashcard ({item.card_type})</span>
                         </div>
-                        <strong>Q:</strong> {item.front}
+                        <strong>Q:</strong> <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={{ p: 'span' }}>{preprocessLaTeX(item.front)}</ReactMarkdown>
                       </div>
                     );
                   } else {
@@ -255,7 +363,14 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
                       <div 
                         key={`ann-${item.id}`}
                         className={styles.marginaliaCard}
-                        style={{ top: `${actualTopPercent}%`, borderLeftColor: "#ffeb3b", cursor: "pointer" }}
+                        style={{ 
+                          top: `${actualTopPercent}%`, 
+                          borderLeftColor: "#ffeb3b", 
+                          cursor: "pointer",
+                          "--pdf-zoom": zoom,
+                          width: '300px',
+                          marginTop: '-16px'
+                        } as React.CSSProperties}
                         onClick={() => setActiveViewAnnotation(item)}
                       >
                         <div className={styles.marginaliaHeader}>

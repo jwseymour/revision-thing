@@ -42,7 +42,7 @@ export default async function WorkspacePage({
       <div className={styles.header}>
         <Breadcrumb
           items={[
-            { label: "Library", href: "/dashboard" },
+            { label: "Library", href: "/dashboard?library=true" },
             { label: resourceName },
           ]}
         />

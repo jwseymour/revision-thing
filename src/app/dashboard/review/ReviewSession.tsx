@@ -3,6 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { updateSchedule } from "@/lib/scheduling";
+import { preprocessLaTeX } from "@/lib/math-utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import styles from "./ReviewSession.module.css";
 
 interface ReviewItem {
@@ -140,24 +146,39 @@ export function ReviewSession({ initialItems, returnUrl = "/dashboard", recommen
         <div className={styles.cardInner}>
           <div className={styles.cardFront}>
             <span className={styles.moduleTag}>{flashcard.module}</span>
-            <h3>{flashcard.front}</h3>
-            {flashcard.card_type === "statement" && <p className="text-muted text-sm mt-4">(Fill in the blank)</p>}
+            <div className="markdown-body" style={{ marginTop: "var(--space-md)", fontSize: "1.2rem", fontWeight: "bold" }}>
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(flashcard.front)}</ReactMarkdown>
+            </div>
+            {flashcard.card_type === "statement" && <p className="text-muted text-sm mt-4">(Core Statement Insight)</p>}
             {flashcard.card_type === "deep_dive" && <p className="text-muted text-sm mt-4">(Deep Conceptual Recall)</p>}
             
-            <button className="btn btn-primary" style={{ marginTop: "auto" }} onClick={() => setIsFlipped(true)}>
-              Show Answer
-            </button>
+            {flashcard.card_type !== "statement" ? (
+              <button className="btn btn-primary" style={{ marginTop: "auto" }} onClick={() => setIsFlipped(true)}>
+                Show Answer
+              </button>
+            ) : (
+              <div className={styles.gradingControls} style={{ marginTop: "auto", borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-md)" }}>
+                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.again}`} onClick={() => handleGrade(1)}>Again (1m)</button>
+                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.hard}`} onClick={() => handleGrade(3)}>Hard</button>
+                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.good}`} onClick={() => handleGrade(4)}>Good</button>
+                <button className={`btn btn-sm ${styles.gradeBtn} ${styles.easy}`} onClick={() => handleGrade(5)}>Easy</button>
+              </div>
+            )}
           </div>
 
           <div className={styles.cardBack}>
              <div className={styles.backContent}>
-               <div className={styles.answerText}>{flashcard.back}</div>
+               <div className={`${styles.answerText} markdown-body`}>
+                 <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(flashcard.back)}</ReactMarkdown>
+               </div>
                
                {cascades.length > 0 && (
                  <div className={styles.cascadeSection}>
                    <div style={{ height: "1px", background: "var(--border-subtle)", margin: "var(--space-md) 0" }} />
                    {cascades.slice(0, cascadeLevel).map((c: string, idx: number) => (
-                      <div key={idx} className={styles.cascadeItem}>{c}</div>
+                      <div key={idx} className={`${styles.cascadeItem} markdown-body`}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(c)}</ReactMarkdown>
+                      </div>
                    ))}
                    
                    {cascadeLevel < cascades.length ? (

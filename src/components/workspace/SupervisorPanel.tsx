@@ -3,8 +3,14 @@
 import styles from "./SupervisorPanel.module.css";
 import { useEffect, useRef, useState, FormEvent, ChangeEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { preprocessLaTeX } from "@/lib/math-utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+import { useTextSelection } from "./useTextSelection";
+import { FlashcardGeneratorModal } from "./FlashcardGeneratorModal";
 
 interface SupervisorPanelProps {
   resourceId?: string;
@@ -339,8 +345,8 @@ function SupervisorChat({
             <div className={`${styles.message} ${m.role === 'user' ? styles.userMessage : styles.aiMessage}`}>
               {m.role === 'assistant' ? (
                 <div className="markdown-body">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {m.content}
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+                    {preprocessLaTeX(m.content)}
                   </ReactMarkdown>
                 </div>
               ) : (
@@ -369,7 +375,18 @@ function SupervisorChat({
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className={styles.inputArea} style={{ display: 'flex', gap: '8px' }}>
+      <div style={{ padding: '12px 16px 0', display: 'flex', gap: '16px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)' }}>
+         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer', color: autoReadEnabled ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
+           <input type="checkbox" checked={autoReadEnabled} onChange={() => setAutoReadEnabled(!autoReadEnabled)} style={{ cursor: 'pointer' }} />
+           🔊 Auto-Speak Replies
+         </label>
+         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer', color: isListening ? 'inherit' : 'var(--text-muted)', fontWeight: isListening ? 600 : 400 }}>
+           <input type="checkbox" checked={isListening} onChange={toggleMic} style={{ cursor: 'pointer', accentColor: 'var(--status-error)' }} disabled={isGenerating} />
+           {isListening ? <span style={{ color: "var(--status-error)" }}>🔴 Voice Mode Active</span> : "🎤 Voice Mode Off"}
+         </label>
+      </div>
+
+      <form onSubmit={handleSubmit} className={styles.inputArea} style={{ display: 'flex', gap: '8px', borderTop: 'none', paddingTop: '12px' }}>
         <input
           value={input}
           onChange={handleInputChange}
@@ -378,30 +395,6 @@ function SupervisorChat({
           disabled={isGenerating}
           style={{ flexGrow: 1 }}
         />
-        <button 
-          type="button" 
-          onClick={() => setAutoReadEnabled(!autoReadEnabled)} 
-          className={`btn btn-sm ${autoReadEnabled ? "btn-primary" : "btn-secondary"}`} 
-          title="Auto-Read AI Replies"
-          style={{ padding: '0 8px', fontSize: '1.2rem', background: autoReadEnabled ? 'var(--accent-primary-muted)' : 'var(--bg-tertiary)' }}
-        >
-          {autoReadEnabled ? "🔊" : "🔈"}
-        </button>
-        <button 
-          type="button" 
-          onClick={toggleMic} 
-          className="btn btn-secondary" 
-          disabled={isGenerating} 
-          title="Voice Conversation Mode (Always On)"
-          style={{ position: 'relative' }}
-        >
-          {isListening ? (
-             <>
-               <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, background: 'red', borderRadius: '50%', boxShadow: '0 0 4px red' }} className={styles.pulsingBlob}></span>
-               🎙️
-             </>
-          ) : "🎤"}
-        </button>
         <button type="submit" className="btn btn-primary" disabled={isGenerating || !input.trim()}>
           {isGenerating ? "..." : "Send"}
         </button>
@@ -411,11 +404,29 @@ function SupervisorChat({
   );
 }
 
-export function SupervisorPanel({ moduleName, explicitSessionId, hasPastPaper, onTabSwitch }: SupervisorPanelProps) {
+export function SupervisorPanel({ resourceId, moduleName, explicitSessionId, hasPastPaper, onTabSwitch }: SupervisorPanelProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { selectionData, clearSelection } = useTextSelection(containerRef);
+  const [modalSelection, setModalSelection] = useState<any | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "e") {
+        if (selectionData) {
+          e.preventDefault();
+          setModalSelection(selectionData);
+          clearSelection();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectionData, clearSelection]);
 
   const fetchSessions = async () => {
     try {
@@ -509,7 +520,16 @@ export function SupervisorPanel({ moduleName, explicitSessionId, hasPastPaper, o
   }
 
   return (
-     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+     <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+       {modalSelection && (
+         <FlashcardGeneratorModal
+           selectionData={modalSelection}
+           resourceId={resourceId!}
+           moduleName={moduleName}
+           onClose={() => setModalSelection(null)}
+           onSuccess={() => setModalSelection(null)}
+         />
+       )}
        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)', alignItems: 'center', paddingRight: '16px' }}>
           <div style={{ display: 'flex', flexGrow: 1 }}>
             {hasPastPaper && (

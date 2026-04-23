@@ -42,6 +42,9 @@ export function WorkspaceContainer({ resource }: WorkspaceContainerProps) {
   };
 
   useEffect(() => {
+    if (resource?.id && typeof window !== "undefined") {
+      localStorage.setItem("last_active_resource", resource.id);
+    }
     fetchWorkspaceData();
   }, [resource.id, supabase]);
 

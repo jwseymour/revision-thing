@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./FlashcardGeneratorModal.module.css";
 import { SelectionData } from "./useTextSelection";
@@ -21,8 +21,9 @@ export function FlashcardGeneratorModal({ selectionData, resourceId, moduleName,
   const router = useRouter();
 
   async function handleGenerate() {
-    if (!selectionData) return;
+    if (!selectionData || isGenerating) return;
     setIsGenerating(true);
+    onClose(); // Hide modal immediately to process in background
 
     try {
       const response = await fetch("/api/content/generate-from-highlight", {
@@ -56,7 +57,21 @@ export function FlashcardGeneratorModal({ selectionData, resourceId, moduleName,
     }
   }
 
-  if (!selectionData) return null;
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (!isGenerating) {
+          handleGenerate();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectionData, type, focus, depth, isGenerating]);
+
+  if (!selectionData || isGenerating) return null;
 
   return (
     <div className={styles.overlay} onClick={onClose}>

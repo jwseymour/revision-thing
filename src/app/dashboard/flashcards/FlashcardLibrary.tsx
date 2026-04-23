@@ -2,6 +2,12 @@
 
 import { useState, useMemo } from "react";
 import styles from "./FlashcardLibrary.module.css";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import { preprocessLaTeX } from "@/lib/math-utils";
+import "katex/dist/katex.min.css";
 
 interface Flashcard {
   id: string;
@@ -88,11 +94,15 @@ export function FlashcardLibrary({ initialCards }: { initialCards: Flashcard[] }
                 <span className={styles.typeTag}>{card.card_type}</span>
                 <span className={styles.statusDot} style={{ background: easeColor }} title={schedule && schedule.stability != null ? `Stability: ${schedule.stability.toFixed(1)}` : "Unseen"} />
               </div>
-              <h3 className={styles.cardFront}>{card.front}</h3>
+              <div className={`${styles.cardFront} markdown-body`} style={{ marginTop: '0.5rem' }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(card.front)}</ReactMarkdown>
+              </div>
               
               <div className={styles.cardBack}>
                  <hr className={styles.divider} />
-                 {card.back}
+                 <div className="markdown-body">
+                   <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(card.back)}</ReactMarkdown>
+                 </div>
                  <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
                    <button 
                      onClick={(e) => handleDelete(card.id, e)} 
