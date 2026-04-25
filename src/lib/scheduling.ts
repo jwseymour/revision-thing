@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { fsrs, Rating, Card, createEmptyCard } from 'ts-fsrs';
+import { fsrs, Rating, Grade, Card, createEmptyCard } from 'ts-fsrs';
 
 // Map our UI classifications to FSRS Ratings
 const RATING_MAP: Record<string, Rating> = {
@@ -319,6 +319,7 @@ export async function updateSchedule(
   
   if (state) {
     currentCard = {
+      ...createEmptyCard(new Date()),
       due: new Date(state.next_review_at),
       stability: state.stability ?? 0,
       difficulty: state.difficulty ?? 0,
@@ -337,8 +338,8 @@ export async function updateSchedule(
   // Calculate the next scheduling state using FSRS
   const schedulingRecord = fsrsEngine.repeat(currentCard, now);
   
-  // schedulingRecord returns a RecordLog map indexed by Rating (Again=1, Hard=2, Good=3, Easy=4)
-  const nextLogInfo = schedulingRecord[rating];
+  // schedulingRecord returns a RecordLog map indexed by Grade (Again=1, Hard=2, Good=3, Easy=4)
+  const nextLogInfo = schedulingRecord[rating as unknown as Grade];
   const newCard = nextLogInfo.card;
 
   // 3. Upsert item scheduling state

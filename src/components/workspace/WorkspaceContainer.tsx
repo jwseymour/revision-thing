@@ -54,7 +54,7 @@ export function WorkspaceContainer({ resource }: WorkspaceContainerProps) {
 
   return (
     <div className={styles.container}>
-      <PanelGroup direction="horizontal">
+      <PanelGroup orientation="horizontal">
         {/* Left Pane: PDF */}
         <Panel className={styles.leftPane}>
           <PDFViewer 

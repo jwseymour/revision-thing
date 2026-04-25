@@ -81,11 +81,11 @@ export function DynamicSplitView({
   return (
     <div className={styles.container}>
       <PanelGroup 
-        direction="horizontal" 
+        orientation="horizontal" 
         groupRef={groupRef}
         onLayoutChanged={handleLayoutChanged}
       >
-        <Panel id="main-content" order={1} defaultSize="65" minSize="20" className={styles.mainContent}>
+        <Panel id="main-content" defaultSize="65" minSize="20" className={styles.mainContent}>
           {moduleName && (
             <button 
               className={`btn btn-secondary btn-sm ${styles.toggleBtn}`} 
@@ -104,7 +104,7 @@ export function DynamicSplitView({
             <PanelResizeHandle className={styles.resizeHandle}>
                <div className={styles.resizeHandleInner} />
             </PanelResizeHandle>
-            <Panel id="supervisor-panel" order={2} defaultSize="35" minSize="20" className={styles.supervisorPanel}>
+            <Panel id="supervisor-panel" defaultSize="35" minSize="20" className={styles.supervisorPanel}>
               <SupervisorPanel 
                   key={`${moduleName}-${explicitSessionId || 'new'}`} 
                   moduleName={moduleName} 
