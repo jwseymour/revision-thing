@@ -1,54 +1,54 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  animation: fadeIn 0.2s ease-out;
+  animation: fadeIn 0.15s ease-out;
 }
 
 .modal {
   background: var(--bg-primary);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  width: 90%;
-  max-width: 500px;
-  /* Cap height so modal never exceeds viewport; inner .content scrolls */
-  max-height: min(90dvh, 700px);
+  width: 92%;
+  max-width: 520px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
   overflow: hidden;
-  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes fadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Header ── */
 .header {
-  padding: var(--space-lg);
+  padding: 11px 14px;
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.header h3 {
-  margin: 0;
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  color: var(--text-primary);
+.title {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
 }
 
 .closeBtn {
@@ -56,102 +56,224 @@
   border: none;
   color: var(--text-tertiary);
   cursor: pointer;
-  font-size: 1.2rem;
-  padding: 4px;
+  font-size: 0.95rem;
+  padding: 2px 4px;
+  line-height: 1;
 }
 
-.closeBtn:hover {
-  color: var(--text-primary);
-}
+.closeBtn:hover { color: var(--text-primary); }
 
-.content {
-  padding: var(--space-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-  /* Scroll if form options overflow — header and footer stay pinned */
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
-}
-
+/* ── Source preview ── */
 .sourceText {
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-secondary);
-  padding: var(--space-md);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
 }
 
-.sourceText strong {
-  display: block;
+.sourceLabel {
   font-size: var(--font-size-xs);
+  font-weight: 700;
   text-transform: uppercase;
-  color: var(--text-tertiary);
-  margin-bottom: var(--space-xs);
   letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.sourceText p {
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+.sourcePreview {
+  font-size: var(--font-size-xs);
   font-style: italic;
-  margin: 0;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.options {
+/* ── Body ── */
+.body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  /* No gap between rows — borders separate them */
 }
 
-.typeOption {
+/* ── Stage rows ── */
+.stageRow {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-md);
-  padding: var(--space-md);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
   cursor: pointer;
+  transition: background var(--transition-fast);
+  position: relative;
+}
+
+/* Active stage — highlighted */
+.stageActive {
+  background: var(--bg-secondary);
+}
+
+.stageActive::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent-primary);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Completed stage — subtle */
+.stageDone {
+  background: transparent;
+  opacity: 0.85;
+}
+
+/* Pending stage — dimmed but still clickable */
+.stagePending {
+  background: transparent;
+  opacity: 0.45;
+}
+
+/* Stage number badge */
+.stageNum {
+  font-family: var(--font-geist-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--text-tertiary);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   transition: all var(--transition-fast);
 }
 
-.typeOption:hover {
-  border-color: var(--border-default);
-  background: var(--bg-secondary);
+.stageActive .stageNum {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
-.typeOption:has(input:checked) {
+.stageDone .stageNum {
+  border-color: var(--status-success);
+  color: var(--status-success);
+  /* ✓ checkmark via content would be nicer but keep it simple */
+}
+
+/* ── Pill buttons inside a stage row ── */
+.stagePills {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+}
+
+.pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  color: var(--text-secondary);
+  font-family: inherit;
+}
+
+.pill:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.pillActive {
   border-color: var(--accent-primary);
   background: var(--accent-primary-muted);
+  color: var(--accent-primary);
 }
 
-.typeOption input {
-  margin-top: 4px;
-  accent-color: var(--accent-primary);
+/* Keyboard shortcut number badge */
+.pillKey {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-geist-mono);
+  font-size: 10px;
+  font-weight: 700;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  border: 1px solid var(--border-default);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
 }
 
-.typeInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.pillActive .pillKey {
+  background: var(--accent-primary);
+  color: #1a1815;
+  border-color: transparent;
 }
 
-.typeTitle {
+.pillLabel {
+  font-size: var(--font-size-sm);
   font-weight: 600;
+  line-height: 1.1;
+}
+
+.pillDesc {
+  font-size: 10px;
+  opacity: 0.7;
+  line-height: 1.1;
+}
+
+/* ── Stage 3: Focus input ── */
+.focusInput {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-primary);
   color: var(--text-primary);
   font-size: var(--font-size-sm);
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition-fast);
 }
 
-.typeDesc {
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
+.focusInput::placeholder {
+  color: var(--text-muted);
 }
 
+.focusInput:focus {
+  border-color: var(--accent-primary);
+}
+
+/* ── Footer ── */
 .footer {
-  padding: var(--space-md) var(--space-lg);
+  padding: 9px 14px;
   border-top: 1px solid var(--border-subtle);
   display: flex;
-  justify-content: flex-end;
-  gap: var(--space-md);
+  align-items: center;
+  gap: var(--space-sm);
   background: var(--bg-secondary);
+}
+
+.hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-family: var(--font-geist-mono);
+  margin-right: auto;
 }

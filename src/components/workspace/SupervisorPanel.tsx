@@ -49,6 +49,13 @@ function SupervisorChat({
   const [isListening, setIsListening] = useState(false);
   const [activeSpeechMsgId, setActiveSpeechMsgId] = useState<string | null>(null);
   const [autoReadEnabled, setAutoReadEnabled] = useState(false);
+  const [speechSpeed, setSpeechSpeed] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("supervisor_speech_speed");
+      return saved ? parseFloat(saved) : 2;
+    }
+    return 2;
+  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -56,11 +63,17 @@ function SupervisorChat({
   const isMicSuspendedRef = useRef(false);
   const autoReadRef = useRef(false);
   const recognitionRef = useRef<any>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Sync ref for callback closures
   useEffect(() => {
     autoReadRef.current = autoReadEnabled;
   }, [autoReadEnabled]);
+
+  // Persist speech speed
+  useEffect(() => {
+    localStorage.setItem("supervisor_speech_speed", String(speechSpeed));
+  }, [speechSpeed]);
 
   // Load history
   useEffect(() => {
@@ -102,7 +115,28 @@ function SupervisorChat({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isGenerating]);
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => setInput(e.target.value);
+  const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    // Auto-resize: reset then expand to content
+    const el = e.target;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  };
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (!isGenerating && input.trim()) {
+        const text = input;
+        setInput("");
+        // Reset height after clearing
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "auto";
+        }
+        doSend(text);
+      }
+    }
+  };
 
   const startListening = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -229,6 +263,7 @@ function SupervisorChat({
         const url = URL.createObjectURL(blob);
         
         const audio = new Audio(url);
+        audio.playbackRate = speechSpeed;
         audioRef.current = audio;
         
         suspendMic();
@@ -326,6 +361,7 @@ function SupervisorChat({
     e.preventDefault();
     const text = input;
     setInput("");
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
     doSend(text);
   };
 
@@ -375,27 +411,44 @@ function SupervisorChat({
         <div ref={messagesEndRef} />
       </div>
 
-      <div style={{ padding: '12px 16px 0', display: 'flex', gap: '16px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)' }}>
+      <div style={{ padding: '10px 16px 0', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)' }}>
          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer', color: autoReadEnabled ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
            <input type="checkbox" checked={autoReadEnabled} onChange={() => setAutoReadEnabled(!autoReadEnabled)} style={{ cursor: 'pointer' }} />
-           🔊 Auto-Speak Replies
+           🔊 Auto-Speak
          </label>
          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer', color: isListening ? 'inherit' : 'var(--text-muted)', fontWeight: isListening ? 600 : 400 }}>
            <input type="checkbox" checked={isListening} onChange={toggleMic} style={{ cursor: 'pointer', accentColor: 'var(--status-error)' }} disabled={isGenerating} />
-           {isListening ? <span style={{ color: "var(--status-error)" }}>🔴 Voice Mode Active</span> : "🎤 Voice Mode Off"}
+           {isListening ? <span style={{ color: "var(--status-error)" }}>🔴 Voice Active</span> : "🎤 Voice Off"}
+         </label>
+         {/* Speed slider */}
+         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
+           <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', fontFamily: 'var(--font-geist-mono)' }}>Speed</span>
+           <input
+             type="range"
+             min={0.5}
+             max={3}
+             step={0.25}
+             value={speechSpeed}
+             onChange={(e) => setSpeechSpeed(parseFloat(e.target.value))}
+             style={{ width: '80px', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+             title={`Playback speed: ${speechSpeed}×`}
+           />
+           <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: '0.78rem', minWidth: '30px', color: 'var(--accent-primary)' }}>{speechSpeed}×</span>
          </label>
       </div>
 
-      <form onSubmit={handleSubmit} className={styles.inputArea} style={{ display: 'flex', gap: '8px', borderTop: 'none', paddingTop: '12px' }}>
-        <input
+      <form onSubmit={handleSubmit} className={styles.inputArea}>
+        <textarea
+          ref={textareaRef}
           value={input}
           onChange={handleInputChange}
-          placeholder="Ask your Supervisor..."
+          onKeyDown={handleTextareaKeyDown}
+          placeholder="Ask your Supervisor… (Shift+Enter for new line)"
           className={styles.input}
           disabled={isGenerating}
-          style={{ flexGrow: 1 }}
+          rows={1}
         />
-        <button type="submit" className="btn btn-primary" disabled={isGenerating || !input.trim()}>
+        <button type="submit" className="btn btn-primary" disabled={isGenerating || !input.trim()} style={{ alignSelf: 'flex-end' }}>
           {isGenerating ? "..." : "Send"}
         </button>
       </form>

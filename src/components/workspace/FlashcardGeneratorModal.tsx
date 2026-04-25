@@ -1,30 +1,86 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./FlashcardGeneratorModal.module.css";
 import { SelectionData } from "./useTextSelection";
 
 interface FlashcardGeneratorModalProps {
-  selectionData: SelectionData | null; // Contains text and rects to save layout
+  selectionData: SelectionData | null;
   resourceId: string;
   moduleName: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export function FlashcardGeneratorModal({ selectionData, resourceId, moduleName, onClose, onSuccess }: FlashcardGeneratorModalProps) {
-  const [type, setType] = useState<"statement" | "qna" | "deep_dive">("qna");
+type CardType = "statement" | "qna" | "deep_dive";
+type Depth    = "basic" | "standard" | "advanced";
+type Stage    = "type" | "depth" | "focus";
+
+const TYPE_OPTIONS: { value: CardType; label: string; desc: string }[] = [
+  { value: "statement", label: "Statement",  desc: "Single fact" },
+  { value: "qna",       label: "Q & A",      desc: "Two-sided" },
+  { value: "deep_dive", label: "Deep Dive",  desc: "Step-by-step" },
+];
+
+const DEPTH_OPTIONS: { value: Depth; label: string; desc: string }[] = [
+  { value: "basic",    label: "Basic",    desc: "Overview" },
+  { value: "standard", label: "Standard", desc: "Core" },
+  { value: "advanced", label: "Advanced", desc: "Rigorous" },
+];
+
+export function FlashcardGeneratorModal({
+  selectionData, resourceId, moduleName, onClose, onSuccess,
+}: FlashcardGeneratorModalProps) {
+  const [type,  setType]  = useState<CardType>("qna");
+  const [depth, setDepth] = useState<Depth>("standard");
   const [focus, setFocus] = useState("");
-  const [depth, setDepth] = useState<"basic" | "standard" | "advanced">("standard");
+  const [stage, setStage] = useState<Stage>("type");
   const [isGenerating, setIsGenerating] = useState(false);
+  const focusRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  // When stage advances to "focus", auto-focus the text input
+  useEffect(() => {
+    if (stage === "focus") {
+      setTimeout(() => focusRef.current?.focus(), 30);
+    }
+  }, [stage]);
+
+  // Keyboard shortcuts: 1/2/3 drive the stage machine
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl+Enter always generates
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (!isGenerating) handleGenerate();
+        return;
+      }
+
+      // Escape closes
+      if (e.key === "Escape") { onClose(); return; }
+
+      // Don't intercept number keys when the focus input is active
+      if (document.activeElement === focusRef.current) return;
+
+      if (stage === "type") {
+        if (e.key === "1") { e.preventDefault(); setType("statement");  setStage("depth"); }
+        if (e.key === "2") { e.preventDefault(); setType("qna");        setStage("depth"); }
+        if (e.key === "3") { e.preventDefault(); setType("deep_dive");  setStage("depth"); }
+      } else if (stage === "depth") {
+        if (e.key === "1") { e.preventDefault(); setDepth("basic");    setStage("focus"); }
+        if (e.key === "2") { e.preventDefault(); setDepth("standard"); setStage("focus"); }
+        if (e.key === "3") { e.preventDefault(); setDepth("advanced"); setStage("focus"); }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [stage, type, depth, focus, isGenerating]);
 
   async function handleGenerate() {
     if (!selectionData || isGenerating) return;
     setIsGenerating(true);
-    onClose(); // Hide modal immediately to process in background
-
+    onClose();
     try {
       const response = await fetch("/api/content/generate-from-highlight", {
         method: "POST",
@@ -35,19 +91,15 @@ export function FlashcardGeneratorModal({ selectionData, resourceId, moduleName,
           resource_id: resourceId,
           focus: focus.trim(),
           depth,
-          source_rects: { 
-            pageNumber: selectionData.pageNumber,
-            topPercent: selectionData.topPercent,
-            heightPercent: selectionData.heightPercent
+          source_rects: {
+            pageNumber:    selectionData.pageNumber,
+            topPercent:    selectionData.topPercent,
+            heightPercent: selectionData.heightPercent,
           },
         }),
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to generate flashcard");
-      }
-
-      router.refresh(); // Sync flashcard cache immediately
+      if (!response.ok) throw new Error("Failed to generate flashcard");
+      router.refresh();
       onSuccess();
     } catch (err) {
       console.error(err);
@@ -57,112 +109,102 @@ export function FlashcardGeneratorModal({ selectionData, resourceId, moduleName,
     }
   }
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-        e.preventDefault();
-        if (!isGenerating) {
-          handleGenerate();
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectionData, type, focus, depth, isGenerating]);
-
   if (!selectionData || isGenerating) return null;
+
+  const preview = selectionData.text.length > 90
+    ? selectionData.text.slice(0, 90) + "…"
+    : selectionData.text;
+
+  const stageHint =
+    stage === "type"  ? "Press 1 · 2 · 3 to pick type" :
+    stage === "depth" ? "Press 1 · 2 · 3 to pick depth" :
+    "Type a focus note, or ⌘↩ to generate";
 
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+
+        {/* ── Header ── */}
         <div className={styles.header}>
-          <h3>Generate AI Flashcard</h3>
-          <button className={styles.closeBtn} onClick={onClose}>✕</button>
-        </div>
-        
-        <div className={styles.content}>
-          <div className={styles.sourceText}>
-            <strong>Selected Text:</strong>
-            <p>"{selectionData.text.length > 100 ? selectionData.text.slice(0, 100) + '...' : selectionData.text}"</p>
-          </div>
-
-          <div className={styles.options}>
-            <label className={styles.typeOption}>
-              <input 
-                type="radio" 
-                name="type" 
-                value="statement" 
-                checked={type === "statement"} 
-                onChange={() => setType("statement")} 
-              />
-              <div className={styles.typeInfo}>
-                <span className={styles.typeTitle}>Statement (Cloze)</span>
-                <span className={styles.typeDesc}>A single fact where a key term is hidden.</span>
-              </div>
-            </label>
-
-            <label className={styles.typeOption}>
-              <input 
-                type="radio" 
-                name="type" 
-                value="qna" 
-                checked={type === "qna"} 
-                onChange={() => setType("qna")} 
-              />
-              <div className={styles.typeInfo}>
-                <span className={styles.typeTitle}>Question & Answer</span>
-                <span className={styles.typeDesc}>Standard two-sided flashcard.</span>
-              </div>
-            </label>
-
-            <label className={styles.typeOption}>
-              <input 
-                type="radio" 
-                name="type" 
-                value="deep_dive" 
-                checked={type === "deep_dive"} 
-                onChange={() => setType("deep_dive")} 
-              />
-              <div className={styles.typeInfo}>
-                <span className={styles.typeTitle}>Deep Dive</span>
-                <span className={styles.typeDesc}>Multi-sided conceptual breakdown or algorithm steps.</span>
-              </div>
-            </label>
-          </div>
-
-          <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Focus & Comments (Optional)</label>
-              <input 
-                type="text" 
-                placeholder="e.g. Focus only on the time complexity mechanism..."
-                value={focus}
-                onChange={(e) => setFocus(e.target.value)}
-                style={{ padding: '0.625rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem' }}
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Depth of Detail</label>
-              <select 
-                value={depth} 
-                onChange={(e) => setDepth(e.target.value as any)}
-                style={{ padding: '0.625rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem', cursor: 'pointer' }}
-              >
-                <option value="basic">Basic (High-level Summary)</option>
-                <option value="standard">Standard (Core Mechanisms)</option>
-                <option value="advanced">Advanced (Pedantic Details & Edge Cases)</option>
-              </select>
-            </div>
-          </div>
+          <span className={styles.title}>Generate Flashcard</span>
+          <button className={styles.closeBtn} onClick={onClose} tabIndex={-1}>✕</button>
         </div>
 
+        {/* ── Source preview ── */}
+        <div className={styles.sourceText}>
+          <span className={styles.sourceLabel}>From</span>
+          <span className={styles.sourcePreview} title={selectionData.text}>"{preview}"</span>
+        </div>
+
+        {/* ── Body ── */}
+        <div className={styles.body}>
+
+          {/* Stage 1 — Type */}
+          <div className={`${styles.stageRow} ${stage === "type" ? styles.stageActive : styles.stageDone}`}
+               onClick={() => setStage("type")}>
+            <span className={styles.stageNum}>1</span>
+            <div className={styles.stagePills}>
+              {TYPE_OPTIONS.map((opt, i) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`${styles.pill} ${type === opt.value ? styles.pillActive : ""}`}
+                  onClick={(e) => { e.stopPropagation(); setType(opt.value); if (stage === "type") setStage("depth"); }}
+                >
+                  <span className={styles.pillKey}>{i + 1}</span>
+                  <span className={styles.pillLabel}>{opt.label}</span>
+                  <span className={styles.pillDesc}>{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stage 2 — Depth */}
+          <div className={`${styles.stageRow} ${stage === "depth" ? styles.stageActive : stage === "type" ? styles.stagePending : styles.stageDone}`}
+               onClick={() => setStage("depth")}>
+            <span className={styles.stageNum}>2</span>
+            <div className={styles.stagePills}>
+              {DEPTH_OPTIONS.map((opt, i) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`${styles.pill} ${depth === opt.value ? styles.pillActive : ""}`}
+                  onClick={(e) => { e.stopPropagation(); setDepth(opt.value); if (stage === "depth") setStage("focus"); }}
+                >
+                  <span className={styles.pillKey}>{i + 1}</span>
+                  <span className={styles.pillLabel}>{opt.label}</span>
+                  <span className={styles.pillDesc}>{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Stage 3 — Focus */}
+          <div className={`${styles.stageRow} ${stage === "focus" ? styles.stageActive : styles.stagePending}`}
+               onClick={() => setStage("focus")}>
+            <span className={styles.stageNum}>3</span>
+            <input
+              ref={focusRef}
+              type="text"
+              className={styles.focusInput}
+              placeholder="Focus note (optional) — e.g. time complexity only…"
+              value={focus}
+              onChange={(e) => setFocus(e.target.value)}
+              onClick={(e) => { e.stopPropagation(); setStage("focus"); }}
+            />
+          </div>
+
+        </div>
+
+        {/* ── Footer ── */}
         <div className={styles.footer}>
-          <button className="btn btn-ghost" onClick={onClose} disabled={isGenerating}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleGenerate} disabled={isGenerating}>
-            {isGenerating ? "Generating..." : "Generate & Save"}
+          <span className={styles.hint}>{stageHint}</span>
+          <button className="btn btn-ghost btn-sm" onClick={onClose} tabIndex={-1}>Cancel</button>
+          <button className="btn btn-primary btn-sm" onClick={handleGenerate} disabled={isGenerating}>
+            Generate ↵
           </button>
         </div>
+
       </div>
     </div>
   );

@@ -84,6 +84,7 @@
 
 .inputArea {
   display: flex;
+  align-items: flex-end; /* Send button pins to bottom when textarea grows */
   gap: var(--space-sm);
   padding: var(--space-md);
   border-top: 1px solid var(--border-subtle);
@@ -92,13 +93,24 @@
 
 .input {
   flex: 1;
-  padding: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
   color: var(--text-primary);
   outline: none;
   transition: border-color var(--transition-fast);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  /* Single row to start, grows with content */
+  min-height: 38px;
+  /* Cap at ~6 lines then scroll */
+  max-height: 140px;
+  overflow-y: auto;
+  resize: none;
+  /* Match vertical rhythm when multiline */
+  word-break: break-word;
 }
 
 .input:focus {
