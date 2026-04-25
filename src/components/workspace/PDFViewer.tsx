@@ -41,12 +41,13 @@ console.warn = (...args) => {
 interface PDFViewerProps {
   filePath: string;
   resourceId: string;
+  moduleName: string;
   flashcards: any[];
   annotations: any[];
   onRefresh: () => void;
 }
 
-export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRefresh }: PDFViewerProps) {
+export function PDFViewer({ filePath, resourceId, moduleName, flashcards, annotations, onRefresh }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [zoom, setZoom] = useState<number>(1);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
@@ -157,9 +158,18 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
   }, [selectionData, clearSelection]);
 
   useEffect(() => {
-    // Files are uploaded to local `public/resources/...` so `filePath` is accessible via `/${filePath}`
-    setFileUrl(`/${filePath}`);
-  }, [filePath]);
+    // Generate a signed URL from Supabase Storage (60-minute expiry)
+    supabase.storage
+      .from("resources")
+      .createSignedUrl(filePath, 3600)
+      .then(({ data, error }) => {
+        if (error || !data?.signedUrl) {
+          setError(`Failed to load document: ${error?.message ?? "Unknown error"}`);
+        } else {
+          setFileUrl(data.signedUrl);
+        }
+      });
+  }, [filePath, supabase]);
 
   useEffect(() => {
     if (!containerRef.current || !numPages) return;
@@ -246,7 +256,7 @@ export function PDFViewer({ filePath, resourceId, flashcards, annotations, onRef
         <FlashcardGeneratorModal
           selectionData={modalSelection}
           resourceId={resourceId}
-          moduleName={"Module"} // TODO: Pass real module name down to PDFViewer props
+          moduleName={moduleName}
           onClose={() => setModalSelection(null)}
           onSuccess={() => {
             setModalSelection(null);

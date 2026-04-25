@@ -65,13 +65,13 @@
   display: block !important;
 }
 
-:global(.react-pdf__Page__textContent) {
+.page :global(.react-pdf__Page__textContent) {
   color: transparent !important;
-  
-  ::selection {
-    background: rgba(138, 180, 248, 0.4);
-    color: transparent !important;
-  }
+}
+
+.page :global(.react-pdf__Page__textContent ::selection) {
+  background: rgba(138, 180, 248, 0.4);
+  color: transparent !important;
 }
 
 .loading, .error {

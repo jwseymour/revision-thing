@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { updateSchedule } from "@/lib/scheduling";
 import { preprocessLaTeX } from "@/lib/math-utils";
@@ -23,6 +23,7 @@ interface ReviewItem {
     state: number;
     next_review_at: string;
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   flashcard: any;
 }
 
@@ -33,78 +34,66 @@ interface ReviewSessionProps {
 }
 
 export function ReviewSession({ initialItems, returnUrl = "/dashboard", recommendedCount }: ReviewSessionProps) {
-  const [items, setItems] = useState<ReviewItem[]>(initialItems);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [cascadeLevel, setCascadeLevel] = useState(0); 
-  const supabase = createClient();
+  const [cascadeLevel, setCascadeLevel] = useState(0);
 
-  const currentItem = items[currentIndex];
+  // Stable supabase client
+  const supabase = useMemo(() => createClient(), []);
 
-  if (!currentItem) {
-    return (
-      <div style={{ textAlign: "center", padding: "var(--space-3xl)", background: "var(--bg-secondary)", borderRadius: "var(--radius-lg)" }}>
-        <span style={{ fontSize: "3rem", display: "block", marginBottom: "var(--space-lg)" }}>🎯</span>
-        <h2>Session complete!</h2>
-        <p className="text-muted" style={{ marginTop: "var(--space-sm)" }}>You reviewed {items.length} card{items.length !== 1 ? "s" : ""}.</p>
-        <a href={returnUrl} className="btn btn-primary" style={{ marginTop: "var(--space-lg)", display: "inline-block" }}>
-          {returnUrl === "/dashboard/review" ? "Back to Review Overview" : "Back to Library"}
-        </a>
-      </div>
-    );
-  }
+  const currentItem = initialItems[currentIndex];
 
-  const { flashcard, schedule } = currentItem;
-  
-  // Parse cascade content if Deep Dive
-  const cascades = Array.isArray(flashcard.cascade_content) ? flashcard.cascade_content : [];
+  // These must be computed before any conditional hooks — guards below
+  const flashcard = currentItem?.flashcard;
+  const cascades = useMemo(
+    () => (Array.isArray(flashcard?.cascade_content) ? flashcard.cascade_content : []),
+    [flashcard]
+  );
 
-  async function handleGrade(quality: number) {
-    let classification = 'incorrect';
-    if (quality === 3) classification = 'partial';
-    if (quality === 4) classification = 'correct_guessed';
-    if (quality === 5) classification = 'correct_confident';
+  const handleGrade = useCallback(
+    async (quality: number) => {
+      let classification = "incorrect";
+      if (quality === 3) classification = "partial";
+      if (quality === 4) classification = "correct_guessed";
+      if (quality === 5) classification = "correct_confident";
 
-    // Optimistic update
-    setCurrentIndex(idx => idx + 1);
-    setIsFlipped(false);
-    setCascadeLevel(0);
+      // Optimistic update
+      setCurrentIndex((idx) => idx + 1);
+      setIsFlipped(false);
+      setCascadeLevel(0);
 
-    const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (user) {
-      // Record attempt
-      await supabase.from("attempts").insert({
-        user_id: user.id,
-        item_id: flashcard.id,
-        item_type: 'flashcard',
-        classification,
-      });
-
-      // Update schedule via FSRS
-      await updateSchedule(supabase, user.id, flashcard.module, flashcard.id, 'flashcard', classification);
-    }
-  }
+      if (user && flashcard) {
+        await supabase.from("attempts").insert({
+          user_id: user.id,
+          item_id: flashcard.id,
+          item_type: "flashcard",
+          classification,
+        });
+        await updateSchedule(supabase, user.id, flashcard.module, flashcard.id, "flashcard", classification);
+      }
+    },
+    [supabase, flashcard]
+  );
 
   const handleNextCascade = useCallback(() => {
     if (cascadeLevel < cascades.length) {
-      setCascadeLevel(prev => prev + 1);
+      setCascadeLevel((prev) => prev + 1);
     }
   }, [cascadeLevel, cascades.length]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
         return;
       }
 
       const key = e.key;
-      
+
       if (!isFlipped) {
         if (key === " " || key === "Enter") {
           e.preventDefault();
@@ -117,7 +106,6 @@ export function ReviewSession({ initialItems, returnUrl = "/dashboard", recommen
             handleNextCascade();
           }
         } else {
-          // All shown, grade keys
           if (key === "1") { e.preventDefault(); handleGrade(1); }
           if (key === "2") { e.preventDefault(); handleGrade(3); }
           if (key === "3") { e.preventDefault(); handleGrade(4); }
@@ -125,17 +113,30 @@ export function ReviewSession({ initialItems, returnUrl = "/dashboard", recommen
         }
       }
     };
-    
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFlipped, cascades.length, cascadeLevel, handleNextCascade]); // handleGrade is stable-ish but not wrapped, omitting it from deps is acceptable here but better to use stable deps if possible. Actually React states are async so we skip adding handleGrade to avoid stale closures, wait: handleGrade is recreated every render so it always has fresh state. Adding handleGrade will just re-attach the event listener every render, which is perfectly safe and ensures fresh closures.
+  }, [isFlipped, cascades.length, cascadeLevel, handleNextCascade, handleGrade]);
 
+  // Early return AFTER all hooks have been called unconditionally
+  if (!currentItem) {
+    return (
+      <div style={{ textAlign: "center", padding: "var(--space-3xl)", background: "var(--bg-secondary)", borderRadius: "var(--radius-lg)" }}>
+        <span style={{ fontSize: "3rem", display: "block", marginBottom: "var(--space-lg)" }}>🎯</span>
+        <h2>Session complete!</h2>
+        <p className="text-muted" style={{ marginTop: "var(--space-sm)" }}>You reviewed {initialItems.length} card{initialItems.length !== 1 ? "s" : ""}.</p>
+        <a href={returnUrl} className="btn btn-primary" style={{ marginTop: "var(--space-lg)", display: "inline-block" }}>
+          {returnUrl === "/dashboard/review" ? "Back to Review Overview" : "Back to Library"}
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
       <div className={styles.progress}>
-        Card {currentIndex + 1} of {items.length}
-        {recommendedCount && recommendedCount < items.length && (
+        Card {currentIndex + 1} of {initialItems.length}
+        {recommendedCount && recommendedCount < initialItems.length && (
           <span style={{ marginLeft: "var(--space-sm)", color: currentIndex + 1 > recommendedCount ? "var(--status-warning)" : "var(--text-muted)" }}>
             · Recommended: {recommendedCount}
           </span>

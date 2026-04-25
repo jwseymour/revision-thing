@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!item_id || !item_type || !moduleName || !classification) {
+      return NextResponse.json(
         { error: "Missing required fields: item_id, item_type, module, classification" },
         { status: 400 }
       );

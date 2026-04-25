@@ -16,8 +16,8 @@ interface SupervisorPanelProps {
   resourceId?: string;
   moduleName: string;
   explicitSessionId?: string;
-  hasPastPaper: boolean;
-  onTabSwitch: (tab: "past_paper" | "supervisor") => void;
+  hasPastPaper?: boolean;
+  onTabSwitch?: (tab: "past_paper" | "supervisor") => void;
 }
 
 interface Message {
@@ -588,7 +588,7 @@ export function SupervisorPanel({ resourceId, moduleName, explicitSessionId, has
             {hasPastPaper && (
               <button 
                 style={{ flex: 'none', padding: 'var(--space-md) var(--space-lg)', background: 'none', border: 'none', borderBottom: '2px solid transparent', color: 'var(--text-secondary)', fontFamily: 'var(--font-geist-mono)', fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', transition: 'all var(--transition-fast)' }}
-                onClick={() => onTabSwitch("past_paper")}
+                onClick={() => onTabSwitch?.("past_paper")}
               >
                 Answers
               </button>

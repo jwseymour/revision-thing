@@ -1,6 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
-import fs from "fs/promises";
-import path from "path";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const TARGET_CHUNK_SIZE = 2000; // ~2000 characters per chunk
 const MIN_CHUNK_SIZE = 200; // Don't create tiny chunks
@@ -15,17 +13,21 @@ export interface TextChunk {
  * Download a PDF from Supabase Storage and extract text using pdf-parse.
  * Returns the raw extracted text.
  */
-export async function extractTextFromPDF(filePath: string): Promise<string> {
-  // Construct absolute path from the relative database path
-  // `filePath` is expected to be like "resources/part/paper/module/file.pdf"
-  const absolutePath = path.join(process.cwd(), "public", filePath);
+export async function extractTextFromPDF(
+  supabase: SupabaseClient,
+  filePath: string
+): Promise<string> {
+  // filePath is the storage path, e.g. "resources/part/paper/module/file.pdf"
+  const { data, error } = await supabase.storage
+    .from("resources")
+    .download(filePath);
 
-  let buffer: Buffer;
-  try {
-    buffer = await fs.readFile(absolutePath);
-  } catch (error) {
-    throw new Error(`Failed to read PDF from filesystem: ${(error as Error).message}`);
+  if (error || !data) {
+    throw new Error(`Failed to download PDF from storage: ${error?.message ?? "Unknown error"}`);
   }
+
+  // Convert Blob → Buffer
+  const buffer = Buffer.from(await data.arrayBuffer());
 
   // Use pdf-parse to extract text
   // Dynamic import because pdf-parse uses require() internally
@@ -129,9 +131,12 @@ export function chunkText(text: string): TextChunk[] {
 }
 
 /**
- * Full pipeline: download PDF → extract text → chunk.
+ * Full pipeline: download PDF from Supabase Storage → extract text → chunk.
  */
-export async function processPDF(filePath: string): Promise<TextChunk[]> {
-  const text = await extractTextFromPDF(filePath);
+export async function processPDF(
+  supabase: SupabaseClient,
+  filePath: string
+): Promise<TextChunk[]> {
+  const text = await extractTextFromPDF(supabase, filePath);
   return chunkText(text);
 }

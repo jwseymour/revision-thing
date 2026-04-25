@@ -1,9 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import * as fsSync from "fs";
-import path from "path";
 import OpenAI from "openai";
+import { toFile } from "openai/uploads";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -31,7 +29,7 @@ export async function POST(request: NextRequest) {
     const part = formData.get("part") as string;
     const paper = formData.get("paper") as string;
     const moduleName = formData.get("module") as string;
-    const resourceType = formData.get("type") as string || "notes";
+    const resourceType = (formData.get("type") as string) || "notes";
     const files = formData.getAll("files") as File[];
 
     // Validate inputs
@@ -49,14 +47,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (process.env.NODE_ENV !== "development") {
-      return NextResponse.json(
-        { error: "File system uploads are only supported in local development." },
-        { status: 403 }
-      );
-    }
-
-    // Sanitise folder names for file paths (replace spaces with hyphens, lowercase)
+    // Sanitise folder names for storage paths (replace spaces with hyphens, lowercase)
     const sanitise = (s: string) =>
       s.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
 
@@ -64,15 +55,9 @@ export async function POST(request: NextRequest) {
     const sanitisedPaper = sanitise(paper);
     const sanitisedModule = sanitise(moduleName);
 
-    const basePath = path.join(process.cwd(), "public", "resources", sanitisedPart, sanitisedPaper, sanitisedModule);
-
-    // Ensure directory exists
-    await fs.mkdir(basePath, { recursive: true });
-
     // Ensure OpenAI Assistant and Vector Store exist for this module
     let vectorStoreId: string | undefined;
-    
-    // Using service role bypassing RLS for system operations? No, User is authenticated.
+
     const { data: existingAssistant } = await supabase
       .from("module_assistants")
       .select("*")
@@ -85,23 +70,27 @@ export async function POST(request: NextRequest) {
       console.log(`Creating new OpenAI Vector Store and Assistant for ${moduleName}`);
       const vectorStore = await openai.vectorStores.create({ name: `tripos_${sanitisedModule}_vs` });
       vectorStoreId = vectorStore.id;
-      
+
       const assistant = await openai.beta.assistants.create({
         name: `Tripos Supervisor: ${moduleName}`,
         instructions: `You are a Cambridge Computer Science supervisor. Use the provided course notes to aggressively challenge the student's understanding via Socratic questioning. Do not provide direct answers. Demand rigorous logic.`,
         model: "gpt-4o",
         tools: [{ type: "file_search" }],
-        tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } }
+        tool_resources: { file_search: { vector_store_ids: [vectorStore.id] } },
       });
 
       const { error: assistantError } = await supabase.from("module_assistants").insert({
         module: moduleName,
         openai_assistant_id: assistant.id,
-        openai_vector_store_id: vectorStore.id
+        openai_vector_store_id: vectorStore.id,
       });
+
       if (assistantError) {
-         console.error("Failed to insert module_assistant mapping:", assistantError);
-         return NextResponse.json({ error: `Assistant Mapping Error: ${assistantError.message}` }, { status: 500 });
+        console.error("Failed to insert module_assistant mapping:", assistantError);
+        return NextResponse.json(
+          { error: `Assistant Mapping Error: ${assistantError.message}` },
+          { status: 500 }
+        );
       }
     }
 
@@ -135,20 +124,26 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Build relative storage path for DB
-      const relativePath = `resources/${sanitisedPart}/${sanitisedPaper}/${sanitisedModule}/${file.name}`;
-      const absolutePath = path.join(basePath, file.name);
+      // Build storage path (used both in Supabase Storage and as the DB file_path)
+      const storagePath = `resources/${sanitisedPart}/${sanitisedPaper}/${sanitisedModule}/${file.name}`;
 
-      // 1. Save to local File System
-      try {
-        const fileBuffer = Buffer.from(await file.arrayBuffer());
-        await fs.writeFile(absolutePath, fileBuffer);
-      } catch (uploadError) {
+      // Read file as buffer once — reuse for both Storage and OpenAI
+      const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+      // 1. Upload to Supabase Storage
+      const { error: storageError } = await supabase.storage
+        .from("resources")
+        .upload(storagePath, fileBuffer, {
+          contentType: "application/pdf",
+          upsert: true, // Overwrite if same filename re-uploaded
+        });
+
+      if (storageError) {
         results.push({
           id: "",
           file_name: file.name,
           status: "error",
-          error: `Upload failed: ${uploadError}`,
+          error: `Storage upload failed: ${storageError.message}`,
         });
         continue;
       }
@@ -157,41 +152,41 @@ export async function POST(request: NextRequest) {
       let openaiFileId = null;
       try {
         const openAiFile = await openai.files.create({
-          file: fsSync.createReadStream(absolutePath),
+          file: await toFile(fileBuffer, file.name, { type: "application/pdf" }),
           purpose: "assistants",
         });
         openaiFileId = openAiFile.id;
 
         // 3. Attach file to the Module Vector Store
         if (vectorStoreId) {
-           await openai.vectorStores.files.create(vectorStoreId, { file_id: openaiFileId });
+          await openai.vectorStores.files.create(vectorStoreId, { file_id: openaiFileId });
         }
-      } catch (oaiError: any) {
+      } catch (oaiError) {
         console.error("OpenAI Upload Error:", oaiError);
-        // We will continue so at least local works, but log it
+        // Continue so at least Storage upload is recorded
       }
 
       // 4. Insert resource record into DB
       const { data: resource, error: dbError } = await supabase
         .from("resources")
         .insert({
-          user_id: user.id, // we still capture the uploader
+          user_id: user.id,
           part: part.trim(),
           paper: paper.trim(),
           module: moduleName.trim(),
-          file_path: relativePath,
+          file_path: storagePath,
           file_name: file.name,
           file_size_bytes: file.size,
-          status: "ready", // Hardcode ready if processed
+          status: "ready",
           type: resourceType,
-          openai_file_id: openaiFileId
+          openai_file_id: openaiFileId,
         })
         .select("id, file_name, status")
         .single();
 
       if (dbError) {
-        // Try to clean up local file
-        await fs.unlink(absolutePath).catch(() => {});
+        // Try to clean up storage if DB insert failed
+        await supabase.storage.from("resources").remove([storagePath]);
         results.push({
           id: "",
           file_name: file.name,

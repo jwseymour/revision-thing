@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // Step 1: Process PDF → extract text → chunk
-      const chunks = await processPDF(resource.file_path);
+      const chunks = await processPDF(supabase, resource.file_path);
 
       if (chunks.length === 0) {
         await supabase

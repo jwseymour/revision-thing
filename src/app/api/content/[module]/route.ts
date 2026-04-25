@@ -75,13 +75,6 @@ export async function GET(
       finalQuestions = finalQuestions.filter(q => dueItemIds.has(q.id) || !allStateIds.has(q.id));
     }
 
-    if (qError) {
-      return NextResponse.json(
-        { error: `Failed to fetch questions: ${qError.message}` },
-        { status: 500 }
-      );
-    }
-
     return NextResponse.json({
       module: decodedModule,
       flashcards: finalFlashcards,

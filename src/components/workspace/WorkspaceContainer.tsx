@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { PDFViewer } from "./PDFViewer";
 import { SupervisorPanel } from "./SupervisorPanel";
@@ -17,9 +17,13 @@ export function WorkspaceContainer({ resource }: WorkspaceContainerProps) {
   const [activeTab, setActiveTab] = useState<"past_paper" | "supervisor">(resource.type === "past_paper" ? "past_paper" : "supervisor");
   const [flashcards, setFlashcards] = useState<any[]>([]);
   const [annotations, setAnnotations] = useState<any[]>([]);
-  const supabase = createClient();
 
-  const fetchWorkspaceData = async () => {
+  // Stable supabase client — createClient() returns a singleton so this is safe,
+  // but wrapping in useMemo ensures it's never a new reference between renders
+  // (which would cause the useEffect to re-run infinitely).
+  const supabase = useMemo(() => createClient(), []);
+
+  const fetchWorkspaceData = useCallback(async () => {
     const [{ data: userCards }, { data: schedules }] = await Promise.all([
       supabase.from("flashcards").select('*').eq("resource_id", resource.id),
       supabase.from("item_scheduling_state").select('item_id, stability, difficulty').eq("item_type", "flashcard")
@@ -39,14 +43,14 @@ export function WorkspaceContainer({ resource }: WorkspaceContainerProps) {
       .eq("resource_id", resource.id);
 
     if (userAnns) setAnnotations(userAnns);
-  };
+  }, [supabase, resource.id]);
 
   useEffect(() => {
     if (resource?.id && typeof window !== "undefined") {
       localStorage.setItem("last_active_resource", resource.id);
     }
     fetchWorkspaceData();
-  }, [resource.id, supabase]);
+  }, [fetchWorkspaceData, resource.id]);
 
   return (
     <div className={styles.container}>
@@ -55,7 +59,8 @@ export function WorkspaceContainer({ resource }: WorkspaceContainerProps) {
         <Panel className={styles.leftPane}>
           <PDFViewer 
             filePath={resource.file_path} 
-            resourceId={resource.id} 
+            resourceId={resource.id}
+            moduleName={resource.module}
             flashcards={flashcards}
             annotations={annotations}
             onRefresh={fetchWorkspaceData}

@@ -5,9 +5,9 @@ import { DynamicSplitView } from "@/components/DynamicSplitView";
 import Link from "next/link";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     module: string;
-  };
+  }>;
 }
 
 export default async function PracticeModulePage({ params }: PageProps) {
@@ -19,7 +19,8 @@ export default async function PracticeModulePage({ params }: PageProps) {
 
   if (!user) redirect("/login");
 
-  const moduleName = decodeURIComponent(params.module);
+  const { module: moduleParam } = await params;
+  const moduleName = decodeURIComponent(moduleParam);
 
   // 1. Fetch flashcards strictly for this module
   const { data: flashcards } = await supabase
@@ -44,7 +45,7 @@ export default async function PracticeModulePage({ params }: PageProps) {
     // For "Practice Mode" per module, it feels best to prioritize due items, but if none are due, show all.
     // Let's sort them so due items appear first.
     
-    validItems = flashcards.map(flashcard => {
+    validItems = (flashcards ?? []).map(flashcard => {
       const schedule = schedules?.find(s => s.item_id === flashcard.id);
       return {
         schedule: schedule ? { 
