@@ -43,8 +43,20 @@ export default function UploadPage() {
   // Upload State
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [isLocalhost, setIsLocalhost] = useState(true);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const hostname = window.location.hostname;
+      if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+        setIsLocalhost(false);
+        router.replace("/dashboard");
+      }
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (!isLocalhost) return;
     supabase.from("resources").select("id, part, paper, module, file_path, type")
       .then(({ data }) => setResources(data || []));
   }, [supabase]);
@@ -219,6 +231,10 @@ export default function UploadPage() {
   const successCount = files.filter((f) => f.status === "success").length;
   const hasSuccessful = successCount > 0;
   const isModuleActive = !!(activeNodeId && activeNodeId.includes("module:"));
+
+  if (!isLocalhost) {
+    return null; // Will redirect via useEffect
+  }
 
   return (
     <div className={styles.page}>

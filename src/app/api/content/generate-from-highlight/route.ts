@@ -4,6 +4,8 @@ import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
 
+export const maxDuration = 60; // Configures Vercel to use max duration for hobby tier (or standard timeout for pro tier), preventing 504 timeouts.
+
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();

@@ -32,9 +32,11 @@ export function DynamicSplitView({
 
   // Sync from localStorage on mount and when pathname changes
   useEffect(() => {
+    let currentShowAI = initialShowAI;
     const storedOpen = localStorage.getItem(storageKeyOpen);
     if (storedOpen !== null) {
-      setShowAI(storedOpen === "true");
+      currentShowAI = storedOpen === "true";
+      setShowAI(currentShowAI);
     } else {
       setShowAI(initialShowAI);
     }
@@ -45,13 +47,16 @@ export function DynamicSplitView({
         const layout = JSON.parse(storedWidths);
         // Wait slightly to ensure panels have conditionally rendered before applying layout
         requestAnimationFrame(() => {
-          groupRef.current?.setLayout(layout);
+          // Only apply the stored layout if multiple panels are currently being rendered
+          if (currentShowAI && moduleName && Array.isArray(layout) && layout.length > 1) {
+            groupRef.current?.setLayout(layout);
+          }
         });
       } catch (e) {
         console.error("Failed to apply stored widths");
       }
     }
-  }, [storageKeyOpen, storageKeyWidth, initialShowAI]);
+  }, [storageKeyOpen, storageKeyWidth, initialShowAI, moduleName]);
 
   // Keep state synced when user toggles
   const handleToggle = () => {
@@ -68,9 +73,13 @@ export function DynamicSplitView({
     return () => window.removeEventListener("toggle-supervisor", onGlobalToggle);
   }, [showAI]); // Need showAI in dependency to capture the current state properly
 
-  const handleLayoutChanged = (layout: { [id: string]: number }) => {
+  const handleLayoutChanged = (layout: number[]) => {
     if (typeof window !== "undefined") {
-      localStorage.setItem(storageKeyWidth, JSON.stringify(layout));
+      // Only save if there are multiple panels. 
+      // If we save a single panel layout [100], we lose the user's preferred split sizes when they reopen it.
+      if (layout.length > 1) {
+        localStorage.setItem(storageKeyWidth, JSON.stringify(layout));
+      }
     }
   };
 

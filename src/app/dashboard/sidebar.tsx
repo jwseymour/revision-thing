@@ -108,6 +108,22 @@ export function Sidebar({ userName, userEmail }: { userName: string; userEmail: 
           <nav className={styles["sidebar-nav"]} style={{ paddingBottom: 0 }}>
             <div className={styles["sidebar-section"]}>Global</div>
             {globalNavItems.map((item) => {
+              // Hide Admin Upload path if not on localhost
+              if (item.href === "/dashboard/upload") {
+                if (typeof window !== "undefined") {
+                  if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+                    return null;
+                  }
+                } else {
+                  // SSR fallback - optimally true in dev, false in prod, 
+                  // but we'll conditionally hide based on process.env 
+                  // to avoid hydration mismatches if possible, or just default.
+                  if (process.env.NODE_ENV !== "development") {
+                     return null;
+                  }
+                }
+              }
+
               // Exact match for global items, unless it's the specific pages
               const isActive = item.href === "/dashboard" 
                 ? (pathname === "/dashboard" && !activeModule)

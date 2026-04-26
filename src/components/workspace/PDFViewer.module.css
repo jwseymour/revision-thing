@@ -212,3 +212,30 @@
   color: var(--text-muted);
   cursor: pointer;
 }
+
+.gradingControls {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.gradeBtn {
+  flex: 1;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.gradeBtn:hover {
+  color: #fff;
+}
+
+.again:hover { background: var(--status-error); }
+.hard:hover { background: var(--status-warning); }
+.good:hover { background: var(--accent-primary); }
+.easy:hover { background: var(--status-success); }

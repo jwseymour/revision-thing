@@ -8,8 +8,18 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const ALLOWED_MIME_TYPES = ["application/pdf"];
 
+export const maxDuration = 60; // Max allowed for Vercel Hobby tier
+
 export async function POST(request: NextRequest) {
   try {
+    // Restrict this endpoint so it only runs locally (Admin/ingestion environment)
+    if (process.env.NODE_ENV !== "development") {
+      return NextResponse.json(
+        { error: "Uploads are administratively restricted to localhost environments. Resources are read-only in production." },
+        { status: 403 }
+      );
+    }
+
     const supabase = await createClient();
 
     // Verify auth

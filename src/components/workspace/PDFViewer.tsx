@@ -8,6 +8,7 @@ import { FloatingToolbar } from "./FloatingToolbar";
 import { FlashcardGeneratorModal } from "./FlashcardGeneratorModal";
 import { CommentModal } from "./CommentModal";
 import { ViewCommentModal } from "./ViewCommentModal";
+import { updateSchedule } from "@/lib/scheduling";
 import { preprocessLaTeX } from "@/lib/math-utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -80,6 +81,35 @@ export function PDFViewer({ filePath, resourceId, moduleName, flashcards, annota
       alert("Error deleting flashcard");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleGrade = async (quality: number) => {
+    if (!activeViewCard) return;
+    
+    let classification = "incorrect";
+    if (quality === 3) classification = "partial";
+    if (quality === 4) classification = "correct_guessed";
+    if (quality === 5) classification = "correct_confident";
+
+    const card = activeViewCard;
+    setActiveViewCard(null); // Optimistic close
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && card) {
+      // 1. Log attempt
+      await supabase.from("attempts").insert({
+        user_id: user.id,
+        item_id: card.id,
+        item_type: "flashcard",
+        classification,
+      });
+      
+      // 2. Schedule algorithm (SM-2/FSRS) Update
+      await updateSchedule(supabase, user.id, card.module, card.id, "flashcard", classification);
+      
+      // 3. Refresh marginalia bar visuals
+      onRefresh();
     }
   };
 
@@ -300,6 +330,13 @@ export function PDFViewer({ filePath, resourceId, moduleName, flashcards, annota
                <hr style={{ border: "none", borderTop: "1px solid var(--border-default)", margin: "var(--space-md) 0" }} />
                <div className="markdown-body" style={{ color: "var(--text-secondary)", lineHeight: 1.6 }}>
                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{preprocessLaTeX(activeViewCard.back)}</ReactMarkdown>
+               </div>
+               
+               <div className={styles.gradingControls}>
+                 <button className={`btn btn-sm ${styles.gradeBtn} ${styles.again}`} onClick={() => handleGrade(1)}>Again</button>
+                 <button className={`btn btn-sm ${styles.gradeBtn} ${styles.hard}`} onClick={() => handleGrade(3)}>Hard</button>
+                 <button className={`btn btn-sm ${styles.gradeBtn} ${styles.good}`} onClick={() => handleGrade(4)}>Good</button>
+                 <button className={`btn btn-sm ${styles.gradeBtn} ${styles.easy}`} onClick={() => handleGrade(5)}>Easy</button>
                </div>
             </div>
           </div>

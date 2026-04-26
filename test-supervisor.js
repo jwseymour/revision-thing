@@ -9,7 +9,7 @@ const data = JSON.stringify({
 const req = http.request({
   hostname: 'localhost',
   port: 3000,
-  path: '/api/ai/supervisor',
+  path: '/api/supervisor',
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',

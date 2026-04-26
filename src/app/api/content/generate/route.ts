@@ -2,9 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { processPDF } from "@/lib/pdf-processor";
 import { generateFromChunk } from "@/lib/ai-generator";
 import { NextRequest, NextResponse } from "next/server";
-
-export const maxDuration = 300; // Allow up to 5 minutes for generation
-
+export const maxDuration = 60; // Allow up to 60 seconds (Hobby max equivalent)
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();

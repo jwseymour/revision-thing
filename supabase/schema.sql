@@ -341,29 +341,28 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('resources', 'resources', false)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage RLS: users can only access their own folder
+-- Storage RLS: Admin/Auth users can manage global resources bucket
 DROP POLICY IF EXISTS "Users can upload to own folder" ON storage.objects;
-CREATE POLICY "Users can upload to own folder"
+CREATE POLICY "Authenticated users can upload resources"
   ON storage.objects FOR INSERT
   WITH CHECK (
     bucket_id = 'resources' AND
-    auth.uid()::text = (storage.foldername(name))[1]
+    auth.role() = 'authenticated'
   );
 
 DROP POLICY IF EXISTS "Users can view own files" ON storage.objects;
-CREATE POLICY "Users can view own files"
+CREATE POLICY "Anyone can view resources objects"
   ON storage.objects FOR SELECT
   USING (
-    bucket_id = 'resources' AND
-    auth.uid()::text = (storage.foldername(name))[1]
+    bucket_id = 'resources'
   );
 
 DROP POLICY IF EXISTS "Users can delete own files" ON storage.objects;
-CREATE POLICY "Users can delete own files"
+CREATE POLICY "Authenticated users can delete resources"
   ON storage.objects FOR DELETE
   USING (
     bucket_id = 'resources' AND
-    auth.uid()::text = (storage.foldername(name))[1]
+    auth.role() = 'authenticated'
   );
 
 -- ============================================================
